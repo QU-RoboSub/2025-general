@@ -1,0 +1,48 @@
+# Based on https://raw.githubusercontent.com/github/gitignore/main/Node.gitignore
+
+Discord Bot/dist/
+
+# Logs
+
+Discord Bot/logs
+Discord Bot/_.log
+Discord Bot/npm-debug.log_
+Discord Bot/yarn-debug.log*
+Discord Bot/yarn-error.log*
+Discord Bot/lerna-debug.log*
+Discord Bot/.pnpm-debug.log*
+
+# Caches
+
+Discord Bot/.cache
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+
+Discord Bot/report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+
+# Runtime data
+
+Discord Bot/pids
+Discord Bot/_.pid
+Discord Bot/_.seed
+Discord Bot/*.pid.lock
+
+Discord Bot/node_modules/
+Discord Bot/.wrangler/
+Discord Bot/jspm_packages/
+
+# Optional npm cache directory
+
+Discord Bot/.npm
+
+# Optional eslint cache
+
+Discord Bot/.eslintcache
+
+# dotenv environment variable files
+
+Discord Bot/.env
+Discord Bot/.env.development.local
+Discord Bot/.env.test.local
+Discord Bot/.env.production.local
+Discord Bot/.env.local
