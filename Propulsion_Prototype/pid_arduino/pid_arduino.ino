@@ -1,84 +1,108 @@
-const int HALL_SENSOR_PIN = A0; // Analog input for Hall effect sensor
-const int PWM_PIN = 6; // PWM output for H-Bridge control
+#include <Servo.h>
+#include "ArduPID.h"
+#include "ping1d.h"
+#include "SoftwareSerial.h"
 
-// Control parameters
-const int MIN_DISTANCE = 50; // Closest safe distance
-const int MAX_DISTANCE = 200; // Farthest operational distance
-const float KP = 1.8; // Proportional gain
-const float KI = 1.63; // Integral gain
-const float KD = 0.5; // Derivative gain
+const byte servoPins[] = {3, 5, 6, 10}; // signal pins for the four ESCs
+Servo servos[4];
 
-// Variables for digital filtering
-int previousPwmValue = 0;
-const int MAX_PWM_CHANGE = 10; // Limit rapid PWM changes for stability
+static const uint8_t arduinoRxPin = 11;
+static const uint8_t arduinoTxPin = 9;
+SoftwareSerial pingSerial = SoftwareSerial(arduinoRxPin, arduinoTxPin);
+static Ping1D ping { pingSerial };
 
-// PID control variables
-float integralError = 0.0; // Accumulated integral error
-const float INTEGRAL_LIMIT = 100.0; // Limit integral windup
-int previousError = 0; // Store the previous error for derivative calculation
+ArduPID myController;
+
+const int MIN_DEPTH = 400; // in mm, how close the submarine can be to the bottom of the pool
+const int MAX_DEPTH = 600; // in mm, how far the auv can be from the bottom of the pool, set this to avoid jumping out the pool
+
+const float CONFIDENCE_THRESH = 0; // Remove for later
+const float FACTOR = 4.55; // Remove for later
+
+double input;
+double output;
+
+// Arbitrary setpoint and gains - adjust these as fit for your project:
+double setpoint = 500;
+double p = 33.43;
+double i = 4;
+double d = 42.01;
 
 void setup() {
+  pingSerial.begin(9600);
   Serial.begin(115200); // Faster serial communication for real-time debugging
-  pinMode(HALL_SENSOR_PIN, INPUT);
-  pinMode(PWM_PIN, OUTPUT);
-}
 
-int readHallSensor() {
-  long totalReading = 0;
-  const int NUM_SAMPLES = 4;
-  
-  for (int i = 0; i < NUM_SAMPLES; i++) {
-    totalReading += analogRead(HALL_SENSOR_PIN);
+  Serial.println("Starting PID Controller initialization...");
+  myController.begin(&input, &output, &setpoint, p, i, d);
+  myController.setOutputLimits(1100, 1900);
+  myController.setBias(255.0 / 2.0);
+  myController.setWindUpLimits(-10, 10);
+  myController.start();
+  Serial.println("PID Controller ready");
+
+  Serial.println("Starting Ping initialization...");
+  while (!ping.initialize()) {
+        Serial.println("\nPing device failed to initialize!");
+        Serial.println("Are the Ping rx/tx wired correctly?");
+        Serial.print("Ping rx is the green wire, and should be connected to Arduino pin ");
+        Serial.print(arduinoTxPin);
+        Serial.println(" (Arduino tx)");
+        Serial.print("Ping tx is the white wire, and should be connected to Arduino pin ");
+        Serial.print(arduinoRxPin);
+        Serial.println(" (Arduino rx)");
+        delay(2000);
   }
+  Serial.println("Ping armed.");
   
-  int avgReading = totalReading / NUM_SAMPLES;
-  return constrain(avgReading, MIN_DISTANCE, MAX_DISTANCE);
-}
-
-int calculateMagneticStrength() {
-  int distance = readHallSensor();
-  int targetDistance = (MIN_DISTANCE + MAX_DISTANCE) / 2; // Set desired levitation point
-  
-  // Calculate error (invert logic)
-  int error = distance - targetDistance; // Inverted: more force if magnet is farther
-  
-  // Proportional term
-  float proportional = KP * error;
-
-  // Integral term (with windup protection)
-  integralError += error;
-  integralError = constrain(integralError, -INTEGRAL_LIMIT, INTEGRAL_LIMIT);
-  float integral = KI * integralError;
-
-  // Derivative term
-  float derivative = KD * (error - previousError);
-  previousError = error; // Update previous error
-
-  // Total control output
-  int pwmValue = proportional + integral + derivative;
-  
-  // Constrain PWM value
-  pwmValue = constrain(pwmValue, 0, 255);
-  
-  // Implement soft ramping to prevent sudden changes
-  int pwmDiff = pwmValue - previousPwmValue;
-  if (abs(pwmDiff) > MAX_PWM_CHANGE) {
-    pwmValue = previousPwmValue + (pwmDiff > 0 ? MAX_PWM_CHANGE : -MAX_PWM_CHANGE);
+  // Attach each ESC to its corresponding pin and send the stop signal
+  Serial.println("Starting ESC initialization...");
+  for (int i = 0; i < 4; i++) {
+    servos[i].attach(servoPins[i]);
+    servos[i].writeMicroseconds(1500); // send "stop" signal to ESC to arm it
+    Serial.print("ESC ");
+    Serial.print(i);
+    Serial.print(" attached to pin ");
+    Serial.print(servoPins[i]);
+    Serial.println(" with stop signal (1500 µs)");
   }
-  
-  previousPwmValue = pwmValue; // Update previous PWM value
-  return pwmValue;
+  delay(7000); // delay to allow the ESCs to recognize the stopped signal and arm
+  Serial.println("ESCs armed.");
 }
+
+
 
 void loop() {
-  int magneticStrength = calculateMagneticStrength();
-  analogWrite(PWM_PIN, magneticStrength);
-  
-  #ifdef DEBUG
-  Serial.print("PWM: ");
-  Serial.println(magneticStrength);
-  #endif
-}
+  if (ping.update()) {
+        int dist = ping.distance();
+        int conf = ping.confidence();
 
-Kind Regards,
-Muhammad Putra 
+        if (conf >= CONFIDENCE_THRESH) input = dist / FACTOR;
+    } else {
+        Serial.println("No update received!");
+    }
+
+  myController.compute();
+  // myController.debug(&Serial, "myController", PRINT_INPUT    | // Can include or comment out any of these terms to print
+  //                                             PRINT_OUTPUT   | // in the Serial plotter
+  //                                             PRINT_SETPOINT
+  //                                             // PRINT_BIAS     |
+  //                                             // PRINT_P        |
+  //                                             // PRINT_I        |
+  //                                             // PRINT_D
+  //                                             );
+
+  //  Clockwise
+  servos[2].writeMicroseconds(output); // Pin 6
+  servos[3].writeMicroseconds(output); // Pin 10
+
+  //  Counter Clockwise
+  int diff = 1500 - output;
+  int inverse_output = 1500 + diff;
+  servos[1].writeMicroseconds(inverse_output); // Pin 5
+  servos[0].writeMicroseconds(inverse_output); // Pin 3
+  
+  Serial.print("CW PWM:");
+  Serial.print(output);
+  Serial.print(",CCW PWM:");
+  Serial.println(inverse_output);
+}

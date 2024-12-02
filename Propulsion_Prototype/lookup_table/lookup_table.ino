@@ -1,3 +1,5 @@
+#include <Servo.h>
+
 // Define the size of the lookup table
 #define TABLE_SIZE 201
 
@@ -55,7 +57,7 @@ int interpolatePwmValue(float force) {
       float pwm = pwm_values[i] + (pwm_values[i + 1] - pwm_values[i]) * ((force - force_values[i]) / (force_values[i + 1] - force_values[i]));
       
       // Add limit check for PWM values
-      if (pwm < 1300 || pwm > 1700) {
+      if (pwm < 1200 || pwm >= 1701) {
         return -1; // Consider out of bounds if PWM is not in the range [1300, 1700]
       }
 
@@ -66,25 +68,63 @@ int interpolatePwmValue(float force) {
   return -1;
 }
 
+const byte servoPins[] = {3, 5, 6, 10}; // signal pins for the four ESCs
+Servo servos[4];
+
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Enter force value:");
+  Serial.begin(9600); // Start serial communication at 9600 baud rate
+  Serial.println("Starting ESC initialization...");
+
+  // Attach each ESC to its corresponding pin and send the stop signal
+  for (int i = 0; i < 4; i++) {
+    servos[i].attach(servoPins[i]);
+    servos[i].writeMicroseconds(1500); // send "stop" signal to ESC to arm it
+    Serial.print("ESC ");
+    Serial.print(i);
+    Serial.print(" attached to pin ");
+    Serial.print(servoPins[i]);
+    Serial.println(" with stop signal (1500 µs)");
+  }
+
+  delay(7000); // delay to allow the ESCs to recognize the stopped signal and arm
+  Serial.println("ESCs armed. Enter force value:");
 }
 
 void loop() {
   // Check if data is available in the Serial buffer
   if (Serial.available() > 0) {
-    String input = Serial.readStringUntil('\n'); // Read the input until newline
-    input.trim(); // Remove any extra whitespace
-    float force_input = input.toFloat(); // Convert input to float
+    String input = Serial.readStringUntil('\n');  // Read the input until newline
+    input.trim();                                 // Remove any extra whitespace
+    float force_input = input.toFloat();          // Convert input to float
 
-    // Find the corresponding PWM value using interpolation
-    int pwm = interpolatePwmValue(force_input);
-    if (pwm != -1) {
+    // Find the corresponding PWM value for positive and negative forces
+    int pwm_positive = interpolatePwmValue(force_input);
+    int pwm_negative = interpolatePwmValue(-force_input);
+
+    if (pwm_positive != -1 && pwm_negative != -1) {
       Serial.print("Force: ");
       Serial.print(force_input);
-      Serial.print(" -> PWM: ");
-      Serial.println(pwm);
+      Serial.print(" -> PWM Positive: ");
+      Serial.print(pwm_positive);
+      Serial.print(", PWM Negative: ");
+      Serial.println(pwm_negative);
+
+      // Send PWM value to the specified ESCs
+      servos[2].writeMicroseconds(pwm_positive); // Pin 6
+      Serial.print("ESC 2 set to PWM (Positive): ");
+      Serial.println(pwm_positive);
+
+      servos[3].writeMicroseconds(pwm_positive); // Pin 10
+      Serial.print("ESC 3 set to PWM (Positive): ");
+      Serial.println(pwm_positive);
+
+      servos[1].writeMicroseconds(pwm_negative); // Pin 5
+      Serial.print("ESC 1 set to PWM (Negative): ");
+      Serial.println(pwm_negative);
+
+      servos[0].writeMicroseconds(pwm_negative); // Pin 3
+      Serial.print("ESC 0 set to PWM (Negative): ");
+      Serial.println(pwm_negative);
     } else {
       Serial.println("Force value out of bounds or PWM value out of acceptable range (1300-1700).");
     }
