@@ -1,3 +1,4 @@
+
 #include <Servo.h>
 #include "ArduPID.h"
 #include "ping1d.h"
@@ -17,16 +18,16 @@ const int MIN_DEPTH = 400; // in mm, how close the submarine can be to the botto
 const int MAX_DEPTH = 600; // in mm, how far the auv can be from the bottom of the pool, set this to avoid jumping out the pool
 
 const float CONFIDENCE_THRESH = 0; // Remove for later
-const float FACTOR = 4.55; // Remove for later
+const float FACTOR = 1; // Remove for later (4.55 for air)
 
 double input;
 double output;
 
 // Arbitrary setpoint and gains - adjust these as fit for your project:
 double setpoint = 500;
-double p = 33.43;
-double i = 4;
-double d = 42.01;
+double p = 1;
+double i = 0;
+double d = 0;
 
 void setup() {
   pingSerial.begin(9600);
@@ -53,7 +54,6 @@ void setup() {
         delay(2000);
   }
   Serial.println("Ping armed.");
-  
   // Attach each ESC to its corresponding pin and send the stop signal
   Serial.println("Starting ESC initialization...");
   for (int i = 0; i < 4; i++) {
@@ -75,6 +75,11 @@ void loop() {
   if (ping.update()) {
         int dist = ping.distance();
         int conf = ping.confidence();
+
+        Serial.println("Distance: ");
+        Serial.print(ping.distance());
+        Serial.print("Confidence: ");
+        Serial.print(ping.confidence());
 
         if (conf >= CONFIDENCE_THRESH) input = dist / FACTOR;
     } else {
