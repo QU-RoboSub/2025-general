@@ -6,8 +6,8 @@
 #ifdef __cplusplus
 extern "C" {
     #endif
-    void stepFunctionBR_Ping(int8_T * Distance,int size_vector_1);
-    void setupFunctionBR_Ping(uint8_T  arduinoRxPin,int size_vector__1,uint8_T  arduinoTxPin,int size_vector__2,uint8_T  ledPin,int size_vector__3);
+    void stepFunctionPing_v3(uint32_T * Distance,int size_vector_1,uint16_T * Confidence,int size_vector_2);
+    void setupFunctionPing_v3();
     #ifdef __cplusplus
 }
 #endif

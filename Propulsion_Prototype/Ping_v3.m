@@ -1,4 +1,4 @@
-classdef BR_Ping < matlab.System ...
+classdef Ping_v3 < matlab.System ...
         & coder.ExternalDependency ...
         & matlabshared.sensors.simulink.internal.BlockSampleTime
 
@@ -15,9 +15,7 @@ classdef BR_Ping < matlab.System ...
     end
 
     properties (Nontunable)
-        arduinoRxPin = uint8(9);
-        arduinoTxPin = uint8(10);
-        ledPin = uint8(13);
+
     end
 
     properties (Access = private)
@@ -27,7 +25,7 @@ classdef BR_Ping < matlab.System ...
 
     methods
         % Constructor
-        function obj = BR_Ping(varargin)
+        function obj = Ping_v3(varargin)
             setProperties(obj,nargin,varargin{:});
         end
     end
@@ -35,8 +33,8 @@ classdef BR_Ping < matlab.System ...
     methods (Access=protected)
         function setupImpl(obj)
             if ~coder.target('MATLAB')
-                coder.cinclude('BR_Ping.h');
-                coder.ceval('setupFunctionBR_Ping', (obj.arduinoRxPin),1, (obj.arduinoTxPin),1, (obj.ledPin),1);
+                coder.cinclude('Ping_v3.h');
+                coder.ceval('setupFunctionPing_v3');
             end
         end
 
@@ -49,12 +47,12 @@ classdef BR_Ping < matlab.System ...
             end
         end
 
-        function Distance = stepImpl(obj)
-            Distance = int8(zeros(1,1));
-
+        function [Distance,Confidence] = stepImpl(obj)
+            Distance = uint32(zeros(1,1));
+            Confidence = uint16(zeros(1,1));
             if isempty(coder.target)
             else
-                coder.ceval('stepFunctionBR_Ping',coder.ref(Distance),1);
+                coder.ceval('stepFunctionPing_v3',coder.ref(Distance),1,coder.ref(Confidence),1);
             end
         end
 
@@ -73,7 +71,7 @@ classdef BR_Ping < matlab.System ...
         end
 
         function num = getNumOutputsImpl(~)
-            num = 1;
+            num = 2;
         end
 
         function varargout = getInputNamesImpl(obj)
@@ -82,6 +80,7 @@ classdef BR_Ping < matlab.System ...
 
         function varargout = getOutputNamesImpl(obj)
             varargout{1} = 'Distance';
+            varargout{2} = 'Confidence';
         end
 
         function flag = isOutputSizeLockedImpl(~,~)
@@ -90,18 +89,22 @@ classdef BR_Ping < matlab.System ...
 
         function varargout = isOutputFixedSizeImpl(~,~)
             varargout{1} = true;
+            varargout{2} = true;
         end
 
         function varargout = isOutputComplexImpl(~)
             varargout{1} = false;
+            varargout{2} = false;
         end
 
         function varargout = getOutputSizeImpl(~)
             varargout{1} = [1,1];
+            varargout{2} = [1,1];
         end
 
         function varargout = getOutputDataTypeImpl(~)
-            varargout{1} = 'int8';
+            varargout{1} = 'uint32';
+            varargout{2} = 'uint16';
         end
 
         function maskDisplayCmds = getMaskDisplayImpl(obj)
@@ -123,7 +126,7 @@ classdef BR_Ping < matlab.System ...
                     inport_label = [inport_label 'port_label(''input'',' num2str(i) ',''' inputs{i} ''');' ]; %#ok<AGROW>
                 end
             end
-            icon = 'BR_Ping';
+            icon = 'Ping_v3';
             maskDisplayCmds = [ ...
                 ['color(''white'');',...
                 'plot([100,100,100,100]*1,[100,100,100,100]*1);',...
@@ -154,7 +157,7 @@ classdef BR_Ping < matlab.System ...
 
     methods (Static)
         function name = getDescriptiveName(~)
-            name = 'BR_Ping';
+            name = 'Ping_v3';
         end
 
         function tf = isSupportedContext(~)
@@ -176,8 +179,9 @@ classdef BR_Ping < matlab.System ...
             buildInfo.addIncludePaths('C:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype\Ping');
 
             buildInfo.addIncludePaths('C:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype');
+            addSourceFiles(buildInfo,'SoftwareSerial.cpp','C:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype\Ping');
             addSourceFiles(buildInfo,'ping1d.cpp','C:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype\Ping');
-            addSourceFiles(buildInfo,'BR_Ping.cpp','C:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype');
+            addSourceFiles(buildInfo,'Ping_v3.cpp','C:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype');
 
         end
     end

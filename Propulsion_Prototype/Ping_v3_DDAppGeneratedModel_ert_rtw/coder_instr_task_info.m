@@ -1,6 +1,6 @@
 function [taskInfo, numtask, isDeploymentDiagram]=coder_instr_task_info()
     isDeploymentDiagram = 0;
-                    taskInfo(1).samplePeriod = 0.1;
+                    taskInfo(1).samplePeriod = 0.2;
             taskInfo(1).sampleOffset = 0.0;
 
                 taskInfo(1).taskPrio = 40;

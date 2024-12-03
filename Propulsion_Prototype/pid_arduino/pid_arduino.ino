@@ -4,6 +4,8 @@
 #include "ping1d.h"
 #include "SoftwareSerial.h"
 
+#define SPEED_MULTIPLIER 0.15
+
 const byte servoPins[] = {3, 5, 6, 10}; // signal pins for the four ESCs
 Servo servos[4];
 
@@ -17,17 +19,17 @@ ArduPID myController;
 const int MIN_DEPTH = 400; // in mm, how close the submarine can be to the bottom of the pool
 const int MAX_DEPTH = 600; // in mm, how far the auv can be from the bottom of the pool, set this to avoid jumping out the pool
 
-const float CONFIDENCE_THRESH = 0; // Remove for later
-const float FACTOR = 1; // Remove for later (4.55 for air)
+const float CONFIDENCE_THRESH = 100; // Remove for later
+const float FACTOR = 4.55; // Remove for later (4.55 for air)
 
 double input;
 double output;
 
 // Arbitrary setpoint and gains - adjust these as fit for your project:
-double setpoint = 500;
-double p = 1;
-double i = 0;
-double d = 0;
+double setpoint = 800;
+double p = 33.434711290669;
+double i = 4.00673201254504;
+double d = 42.0130886342262;
 
 void setup() {
   pingSerial.begin(9600);
@@ -35,9 +37,9 @@ void setup() {
 
   Serial.println("Starting PID Controller initialization...");
   myController.begin(&input, &output, &setpoint, p, i, d);
-  myController.setOutputLimits(1100, 1900);
-  myController.setBias(255.0 / 2.0);
-  myController.setWindUpLimits(-10, 10);
+  myController.setOutputLimits(-SPEED_MULTIPLIER, SPEED_MULTIPLIER);
+  // myController.setBias(255.0 / 2.0);
+  // myController.setWindUpLimits(-10, 10);
   myController.start();
   Serial.println("PID Controller ready");
 
@@ -76,38 +78,40 @@ void loop() {
         int dist = ping.distance();
         int conf = ping.confidence();
 
-        Serial.println("Distance: ");
-        Serial.print(ping.distance());
-        Serial.print("Confidence: ");
-        Serial.print(ping.confidence());
-
         if (conf >= CONFIDENCE_THRESH) input = dist / FACTOR;
     } else {
         Serial.println("No update received!");
     }
 
   myController.compute();
-  // myController.debug(&Serial, "myController", PRINT_INPUT    | // Can include or comment out any of these terms to print
-  //                                             PRINT_OUTPUT   | // in the Serial plotter
-  //                                             PRINT_SETPOINT
-  //                                             // PRINT_BIAS     |
-  //                                             // PRINT_P        |
-  //                                             // PRINT_I        |
-  //                                             // PRINT_D
-  //                                             );
+  myController.debug(&Serial, "myController", PRINT_INPUT    | // Can include or comment out any of these terms to print
+                                              PRINT_OUTPUT   | // in the Serial plotter
+                                              PRINT_SETPOINT
+                                              // PRINT_BIAS     |
+                                              // PRINT_P        |
+                                              // PRINT_I        |
+                                              // PRINT_D
+                                              );
+
+  Serial.print("Distance: ");
+  Serial.println(input);
+  Serial.print("Thrust Control Output:");
+  Serial.println(output);
+
+  int pwm = 1500 + 400 * output;
 
   //  Clockwise
-  servos[2].writeMicroseconds(output); // Pin 6
-  servos[3].writeMicroseconds(output); // Pin 10
+  servos[2].writeMicroseconds(pwm); // Pin 6
+  servos[3].writeMicroseconds(pwm); // Pin 10
 
   //  Counter Clockwise
-  int diff = 1500 - output;
-  int inverse_output = 1500 + diff;
-  servos[1].writeMicroseconds(inverse_output); // Pin 5
-  servos[0].writeMicroseconds(inverse_output); // Pin 3
+  int diff = 1500 - pwm;
+  int inverse_pwm = 1500 + diff;
+  servos[1].writeMicroseconds(inverse_pwm); // Pin 5
+  servos[0].writeMicroseconds(inverse_pwm); // Pin 3
   
   Serial.print("CW PWM:");
-  Serial.print(output);
+  Serial.print(pwm);
   Serial.print(",CCW PWM:");
-  Serial.println(inverse_output);
+  Serial.println(inverse_pwm);
 }

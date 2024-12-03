@@ -1,0 +1,37 @@
+{
+  "SimulinkCodeImporterVersion": 1,
+  "LibraryFileName": "MathematicalModel",
+  "OutputFolder": "C:\\Users\\research_bu\\Documents\\GitHub\\2025-general\\Propulsion_Prototype",
+  "CustomCode": {
+    "SourceFiles": [
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\hal\\link\\desktop\\abstract-link.cpp",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\hal\\link\\desktop\\serial-link.cpp",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\hal\\link\\desktop\\udp-link.cpp",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\hal\\time\\desktop\\ping-time.cpp",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\device\\ping-device.cpp"
+    ],
+    "InterfaceHeaders": [
+      "ping-message.h",
+      "ping-parser.h",
+      "ping-time.h",
+      "ping-port.h",
+      "abstract-link.h",
+      "serial-link.h",
+      "udp-link.h",
+      "ping-device.h"
+    ],
+    "IncludePaths": [
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\device",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\hal\\link",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\hal\\link\\desktop",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\hal\\time",
+      ".\\..\\..\\..\\..\\Downloads\\ping-cpp-master\\ping-cpp-master\\src\\message"
+    ],
+    "Language": "C++",
+    "GlobalVariableInterface": false,
+    "FunctionArrayLayout": "NotSpecified"
+  },
+  "Options": {
+    "CreateTestHarness": false
+  }
+}
