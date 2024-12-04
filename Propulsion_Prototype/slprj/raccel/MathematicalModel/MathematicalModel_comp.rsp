@@ -1,0 +1,15 @@
+﻿-I"C:\Users\Muhammad Fauzan\Documents\Projects\University\Senior Project\2025-general\Propulsion_Prototype"
+-IC:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype\Ping
+-IC:\Users\research_bu\Documents\GitHub\2025-general\Propulsion_Prototype
+-I"C:\Program Files\MATLAB\R2024b\toolbox\target\shared\svd\common\include"
+-IC:\ProgramData\MATLAB\SupportPackages\R2024b\toolbox\target\supportpackages\arduinobase\include
+-I"C:\Users\Muhammad Fauzan\Documents\Projects\University\Senior Project\2025-general\Propulsion_Prototype\slprj\raccel\MathematicalModel"
+-I"C:\Program Files\MATLAB\R2024b\rtw\c\src\rapid"
+-I"C:\Program Files\MATLAB\R2024b\rtw\c\raccel"
+-I"C:\Program Files\MATLAB\R2024b\rtw\c\src\ext_mode\common"
+-I"C:\Program Files\MATLAB\R2024b\toolbox\coder\rtiostream\src"
+-I"C:\Program Files\MATLAB\R2024b\extern\include"
+-I"C:\Program Files\MATLAB\R2024b\simulink\include"
+-I"C:\Program Files\MATLAB\R2024b\rtw\c\src"
+-I"C:\Program Files\MATLAB\R2024b\toolbox\coder\rtiostream\src\rtiostreamtcpip"
+-I"C:\Program Files\MATLAB\R2024b\toolbox\coder\rtiostream\src\utils"
