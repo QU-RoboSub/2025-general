@@ -16,11 +16,11 @@ static Ping1D ping { pingSerial };
 //const int MAX_DEPTH = 650; // Maximum depth limit in mm
 
 const float CONFIDENCE_THRESH = 100;
-const float FACTOR = 4.55;
+const float FACTOR = 1;
 
 // PID Control Parameters
-const float KP = 33.434711290669 / 150000;
-const float KI = 0;
+const float KP = 33.434711290669 / 200000;
+const float KI = 0.000;
 const float KD = 0;
 float integralError = 0.0;
 const float INTEGRAL_LIMIT = 100.0;
@@ -28,7 +28,7 @@ double previousError = 0;
 
 double input;
 double output;
-double setpoint = 600;
+double setpoint = 975;
 
 void setup() {
   pingSerial.begin(9600);
@@ -98,7 +98,7 @@ void loop() {
   int pwmValue = 1500 + 400 * output;
   int inverse_pwm = 3000 - pwmValue;
 
-  if (error < 500) {
+  if (error < 1500) {
 
     // Clockwise thrusters
     servos[0].writeMicroseconds(pwmValue); // Control ESC on pin 6
