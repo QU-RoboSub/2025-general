@@ -39,6 +39,8 @@ double setpoint = 0.3;
 
 double depthOffset = 0;
 
+int thrustLimit = 1;
+
 void setup() {
   // Initialize Serial Monitor
   Serial.begin(9600);
@@ -98,7 +100,7 @@ void loop() {
 
   // Total control output
   output = proportional + integral + derivative;
-  output = constrain(output, -1, 1);
+  output = constrain(output, -thrustLimit, thrustLimit);
 
   // Constrain output to within PWM limits
   float depth_control = CENTER_DUTY + 2 * output;
@@ -199,6 +201,10 @@ void loop() {
     }
     else if (command == "k") {
       updateAllThrusters(desiredDutyPercentage);
+      thrustLimit = 0;
+    }
+    else if (command == "t") {
+      thrustLimit = 1;
     }
     //  Start: take depth reading at air for offset, call this before starting to go underwaterx
     else if (command == "s") {
