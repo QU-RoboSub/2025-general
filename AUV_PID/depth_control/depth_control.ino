@@ -26,9 +26,9 @@ const int U4 = 7;     // Index for pin 19
 const float CENTER_DUTY = 7.5;
 
 // PID Control Parameters
-const float KP = -33.434711290669 / 200;
-const float KI = 0.000;
-const float KD = 0;
+float KP = -1.67173556453345;
+float KI = 0.000;
+float KD = 0;
 float integralError = 0.0;
 const float INTEGRAL_LIMIT = 100.0;
 double previousError = 0;
@@ -98,11 +98,20 @@ void loop() {
 
   // Total control output
   output = proportional + integral + derivative;
-  output = constrain(output, -0.1, 0.1);
+  output = constrain(output, -1, 1);
 
   // Constrain output to within PWM limits
   float depth_control = CENTER_DUTY + 2 * output;
 
+  Serial.print("P:");
+  Serial.print(KP);
+  Serial.print(",");
+  Serial.print("I:");
+  Serial.print(KI);
+  Serial.print(",");
+  Serial.print("D:");
+  Serial.print(KD);
+  Serial.print(",");
   Serial.print("Current_Depth:");
   Serial.print(input);
   Serial.print(",");
@@ -120,11 +129,11 @@ void loop() {
     String command = Serial.readStringUntil('\n'); // Read input until newline
    
     // Check for forward or backward
-    if (command.startsWith("f") || command.startsWith("b") || command.startsWith("r") || command.startsWith("l") || command.startsWith("v") || command.startsWith("y")) {
+    if (command.startsWith("f") || command.startsWith("b") || command.startsWith("r") || command.startsWith("l") || command.startsWith("v") || command.startsWith("y") || command.startsWith("p") || command.startsWith("i") || command.startsWith("d")) {
       float dutyCycleValue = command.substring(1).toFloat();
      
       // Validate duty cycle range (same logic as original)
-      if ((!command.startsWith("v") && dutyCycleValue >= 5.5 && dutyCycleValue <= 9.5) || command.startsWith("v")) {
+      if ((!command.startsWith("v") && dutyCycleValue >= 5.5 && dutyCycleValue <= 9.5) || command.startsWith("v") || command.startsWith("p") || command.startsWith("i") || command.startsWith("d")) {
         // Calculate the mirrored duty cycle
         float difference = dutyCycleValue - CENTER_DUTY;
         float mirroredDuty = CENTER_DUTY - difference;
@@ -160,9 +169,23 @@ void loop() {
           Serial.print("% | Left thrusters (pins 32, 5) duty cycle: ");
           Serial.print(mirroredDuty);
           Serial.println("%");
+        }
 
-        } else if(command.startsWith("v")){
+        //  Set new target depth
+        else if(command.startsWith("v")){
           setpoint = dutyCycleValue;
+        }
+        //  Set P constant
+        else if(command.startsWith("p")){
+          KP = dutyCycleValue;
+        }
+        //  Set I constant
+        else if(command.startsWith("i")){
+          KI = dutyCycleValue;
+        }
+        //  Set D constant
+        else if(command.startsWith("d")){
+          KD = dutyCycleValue;
         }
 
         else if(command.startsWith("y")){
