@@ -37,6 +37,8 @@ double input;
 double output;
 double setpoint = 0.3;
 
+double depthOffset = 0;
+
 void setup() {
   // Initialize Serial Monitor
   Serial.begin(9600);
@@ -77,7 +79,7 @@ void setup() {
 
 void loop() {
   sensor.read();
-  input = sensor.depth();
+  input = sensor.depth() - depthOffset;
 
   // PID calculations
   double error = setpoint - input;
@@ -96,7 +98,7 @@ void loop() {
 
   // Total control output
   output = proportional + integral + derivative;
-  output = constrain(output, -1, 1);
+  output = constrain(output, -0.1, 0.1);
 
   // Constrain output to within PWM limits
   float depth_control = CENTER_DUTY + 2 * output;
@@ -104,147 +106,155 @@ void loop() {
   Serial.print("Current_Depth:");
   Serial.print(input);
   Serial.print(",");
+  Serial.print("Target_Depth:");
+  Serial.print(setpoint);
+  Serial.print(",");
   Serial.print("Output:");
   Serial.print(output);
   Serial.print(",");
   Serial.print("Depth_Control:");
   Serial.println(depth_control);
 
-  // if (Serial.available() > 0) {
-  //   String input = Serial.readStringUntil('\n'); // Read input until newline
+  updateVSymmetricThrusters(depth_control);
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n'); // Read input until newline
    
-  //   // Check for forward or backward
-  //   if (input.startsWith("f") || input.startsWith("b") || input.startsWith("r") || input.startsWith("l") || input.startsWith("v") || input.startsWith("y")) {
-  //     float dutyCycleValue = input.substring(1).toFloat();
+    // Check for forward or backward
+    if (command.startsWith("f") || command.startsWith("b") || command.startsWith("r") || command.startsWith("l") || command.startsWith("v") || command.startsWith("y")) {
+      float dutyCycleValue = command.substring(1).toFloat();
      
-  //     // Validate duty cycle range (same logic as original)
-  //     if (dutyCycleValue >= 5.5 && dutyCycleValue <= 9.5) {
-  //       // Calculate the mirrored duty cycle
-  //       float difference = dutyCycleValue - CENTER_DUTY;
-  //       float mirroredDuty = CENTER_DUTY - difference;
+      // Validate duty cycle range (same logic as original)
+      if ((!command.startsWith("v") && dutyCycleValue >= 5.5 && dutyCycleValue <= 9.5) || command.startsWith("v")) {
+        // Calculate the mirrored duty cycle
+        float difference = dutyCycleValue - CENTER_DUTY;
+        float mirroredDuty = CENTER_DUTY - difference;
        
-  //       if (input.startsWith("f")) {
-  //         updateFBSymmetricThrusters(dutyCycleValue, mirroredDuty, true);
-  //         Serial.print("Forward thrusters (pins 5, 26) duty cycle: ");
-  //         Serial.print(dutyCycleValue);
-  //         Serial.print("% | Backward thrusters (pins 25, 32) duty cycle: ");
-  //         Serial.print(mirroredDuty);
-  //         Serial.println("%");
+        if (command.startsWith("f")) {
+          updateFBSymmetricThrusters(dutyCycleValue, mirroredDuty, true);
+          Serial.print("Forward thrusters (pins 5, 26) duty cycle: ");
+          Serial.print(dutyCycleValue);
+          Serial.print("% | Backward thrusters (pins 25, 32) duty cycle: ");
+          Serial.print(mirroredDuty);
+          Serial.println("%");
 
-  //       } else if (input.startsWith("b")){   // backward movement
-  //         updateFBSymmetricThrusters(dutyCycleValue, mirroredDuty, false);
-  //         Serial.print("Backward thrusters (pins 25, 32) duty cycle: ");
-  //         Serial.print(dutyCycleValue);
-  //         Serial.print("% | Forward thrusters (pins 5, 26) duty cycle: ");
-  //         Serial.print(mirroredDuty);
-  //         Serial.println("%");
+        } else if (command.startsWith("b")){   // backward movement
+          updateFBSymmetricThrusters(dutyCycleValue, mirroredDuty, false);
+          Serial.print("Backward thrusters (pins 25, 32) duty cycle: ");
+          Serial.print(dutyCycleValue);
+          Serial.print("% | Forward thrusters (pins 5, 26) duty cycle: ");
+          Serial.print(mirroredDuty);
+          Serial.println("%");
 
-  //       } else if(input.startsWith("r")) {
-  //         updateRLSymmetricThrusters(dutyCycleValue, mirroredDuty, true);
-  //         Serial.print("Right thrusters (pins 32, 5) duty cycle: ");
-  //         Serial.print(dutyCycleValue);
-  //         Serial.print("% | Left thrusters (pins 25, 26) duty cycle: ");
-  //         Serial.print(mirroredDuty);
-  //         Serial.println("%");
+        } else if(command.startsWith("r")) {
+          updateRLSymmetricThrusters(dutyCycleValue, mirroredDuty, true);
+          Serial.print("Right thrusters (pins 32, 5) duty cycle: ");
+          Serial.print(dutyCycleValue);
+          Serial.print("% | Left thrusters (pins 25, 26) duty cycle: ");
+          Serial.print(mirroredDuty);
+          Serial.println("%");
 
-  //       } else if(input.startsWith("l")) {
-  //         updateRLSymmetricThrusters(dutyCycleValue, mirroredDuty, false);
-  //         Serial.print("Left thrusters (pins 25, 26) duty cycle: ");
-  //         Serial.print(dutyCycleValue);
-  //         Serial.print("% | Left thrusters (pins 32, 5) duty cycle: ");
-  //         Serial.print(mirroredDuty);
-  //         Serial.println("%");
+        } else if(command.startsWith("l")) {
+          updateRLSymmetricThrusters(dutyCycleValue, mirroredDuty, false);
+          Serial.print("Left thrusters (pins 25, 26) duty cycle: ");
+          Serial.print(dutyCycleValue);
+          Serial.print("% | Left thrusters (pins 32, 5) duty cycle: ");
+          Serial.print(mirroredDuty);
+          Serial.println("%");
 
-  //       } else if(input.startsWith("v")){
-  //         updateVSymmetricThrusters(dutyCycleValue);
-  //       }
+        } else if(command.startsWith("v")){
+          setpoint = dutyCycleValue;
+        }
 
-  //       else if(input.startsWith("y")){
-  //         updateYSymmetricThrusters(dutyCycleValue, mirroredDuty);
-  //       }
+        else if(command.startsWith("y")){
+          updateYSymmetricThrusters(dutyCycleValue, mirroredDuty);
+        }
      
-  //     }
-  //     else {
-  //       Serial.println("Invalid duty cycle. Please enter a value between 7.7% and 9.5%.");
-  //     }
-  //   }
-  //   else if (input == "k") {
-  //     updateAllThrusters(desiredDutyPercentage);
-  //   }
-  //   else {
-  //     Serial.println("Invalid command. Use format: f<duty_cycle>, b<duty_cycle>, or r<duty_cycle>");
-  //   }
-  // }
+      }
+      else {
+        Serial.println("Invalid duty cycle. Please enter a value between 7.7% and 9.5%.");
+      }
+    }
+    else if (command == "k") {
+      updateAllThrusters(desiredDutyPercentage);
+    }
+    //  Start: take depth reading at air for offset, call this before starting to go underwaterx
+    else if (command == "s") {
+      depthOffset += input;
+    }
+    else {
+      Serial.println("Invalid command. Use format: f<duty_cycle>, b<duty_cycle>, or r<duty_cycle>");
+    }
+  }
 }
 
-// // Function to update thrusters symmetrically (forward/backward)
-// void updateFBSymmetricThrusters(float primaryDuty, float mirroredDuty, bool isForward) {
-//   int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
-//   int mirroredDutyCycle = (int)((mirroredDuty / 100.0) * ((1 << pwmResolution) - 1));
+// Function to update thrusters symmetrically (forward/backward)
+void updateFBSymmetricThrusters(float primaryDuty, float mirroredDuty, bool isForward) {
+  int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
+  int mirroredDutyCycle = (int)((mirroredDuty / 100.0) * ((1 << pwmResolution) - 1));
  
-//   if (isForward) {
-//     // Forward movement - primary duty to forward pins, mirrored to back pins
-//     ledcWrite(pwmChannelBase + FORWARD_PIN1, primaryDutyCycle);  // Pin 5
-//     ledcWrite(pwmChannelBase + FORWARD_PIN2, primaryDutyCycle);  // Pin 26
-//     ledcWrite(pwmChannelBase + BACK_PIN1, mirroredDutyCycle);    // Pin 25
-//     ledcWrite(pwmChannelBase + BACK_PIN2, mirroredDutyCycle);    // Pin 32
-//   } else {
-//     // Backward movement - primary duty to back pins, mirrored to forward pins
-//     ledcWrite(pwmChannelBase + BACK_PIN1, primaryDutyCycle);     // Pin 25
-//     ledcWrite(pwmChannelBase + BACK_PIN2, primaryDutyCycle);     // Pin 32
-//     ledcWrite(pwmChannelBase + FORWARD_PIN1, mirroredDutyCycle); // Pin 5
-//     ledcWrite(pwmChannelBase + FORWARD_PIN2, mirroredDutyCycle); // Pin 26
-//   }
-// }
+  if (isForward) {
+    // Forward movement - primary duty to forward pins, mirrored to back pins
+    ledcWrite(pwmChannelBase + FORWARD_PIN1, primaryDutyCycle);  // Pin 5
+    ledcWrite(pwmChannelBase + FORWARD_PIN2, primaryDutyCycle);  // Pin 26
+    ledcWrite(pwmChannelBase + BACK_PIN1, mirroredDutyCycle);    // Pin 25
+    ledcWrite(pwmChannelBase + BACK_PIN2, mirroredDutyCycle);    // Pin 32
+  } else {
+    // Backward movement - primary duty to back pins, mirrored to forward pins
+    ledcWrite(pwmChannelBase + BACK_PIN1, primaryDutyCycle);     // Pin 25
+    ledcWrite(pwmChannelBase + BACK_PIN2, primaryDutyCycle);     // Pin 32
+    ledcWrite(pwmChannelBase + FORWARD_PIN1, mirroredDutyCycle); // Pin 5
+    ledcWrite(pwmChannelBase + FORWARD_PIN2, mirroredDutyCycle); // Pin 26
+  }
+}
 
-// // Function to update thrusters for right turn
-// void updateRLSymmetricThrusters(float primaryDuty, float mirroredDuty, bool isRight) {
-//   int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
-//   int mirroredDutyCycle = (int)((mirroredDuty / 100.0) * ((1 << pwmResolution) - 1));
+// Function to update thrusters for right turn
+void updateRLSymmetricThrusters(float primaryDuty, float mirroredDuty, bool isRight) {
+  int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
+  int mirroredDutyCycle = (int)((mirroredDuty / 100.0) * ((1 << pwmResolution) - 1));
  
-//   if (isRight){
-//     // According to the requirement:
-//     // Pins 32 and 5 get the "primaryDuty"
-//     // Pins 25 and 26 get the "mirroredDuty"
-//     ledcWrite(pwmChannelBase + BACK_PIN2, primaryDutyCycle);    // Pin 32
-//     ledcWrite(pwmChannelBase + FORWARD_PIN1, primaryDutyCycle); // Pin 5
-//     ledcWrite(pwmChannelBase + BACK_PIN1, mirroredDutyCycle);   // Pin 25
-//     ledcWrite(pwmChannelBase + FORWARD_PIN2, mirroredDutyCycle);// Pin 26
-//   } else {
-//     ledcWrite(pwmChannelBase + BACK_PIN1, primaryDutyCycle);    // Pin 32
-//     ledcWrite(pwmChannelBase + FORWARD_PIN2, primaryDutyCycle); // Pin 5
-//     ledcWrite(pwmChannelBase + BACK_PIN2, mirroredDutyCycle);   // Pin 25
-//     ledcWrite(pwmChannelBase + FORWARD_PIN1, mirroredDutyCycle);// Pin 26
-//   }
-// }
+  if (isRight){
+    // According to the requirement:
+    // Pins 32 and 5 get the "primaryDuty"
+    // Pins 25 and 26 get the "mirroredDuty"
+    ledcWrite(pwmChannelBase + BACK_PIN2, primaryDutyCycle);    // Pin 32
+    ledcWrite(pwmChannelBase + FORWARD_PIN1, primaryDutyCycle); // Pin 5
+    ledcWrite(pwmChannelBase + BACK_PIN1, mirroredDutyCycle);   // Pin 25
+    ledcWrite(pwmChannelBase + FORWARD_PIN2, mirroredDutyCycle);// Pin 26
+  } else {
+    ledcWrite(pwmChannelBase + BACK_PIN1, primaryDutyCycle);    // Pin 32
+    ledcWrite(pwmChannelBase + FORWARD_PIN2, primaryDutyCycle); // Pin 5
+    ledcWrite(pwmChannelBase + BACK_PIN2, mirroredDutyCycle);   // Pin 25
+    ledcWrite(pwmChannelBase + FORWARD_PIN1, mirroredDutyCycle);// Pin 26
+  }
+}
 
 
-// void updateVSymmetricThrusters(float primaryDuty) {
-//   int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
-//   ledcWrite(pwmChannelBase + U1, primaryDutyCycle);    // Pin 32
-//   ledcWrite(pwmChannelBase + U2, primaryDutyCycle); // Pin 5
-//   ledcWrite(pwmChannelBase + U3, primaryDutyCycle);   // Pin 25
-//   ledcWrite(pwmChannelBase + U4, primaryDutyCycle);// Pin 26
+void updateVSymmetricThrusters(float primaryDuty) {
+  int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
+  ledcWrite(pwmChannelBase + U1, primaryDutyCycle);    // Pin 32
+  ledcWrite(pwmChannelBase + U2, primaryDutyCycle); // Pin 5
+  ledcWrite(pwmChannelBase + U3, primaryDutyCycle);   // Pin 25
+  ledcWrite(pwmChannelBase + U4, primaryDutyCycle);// Pin 26
 
-// }
+}
 
-// void updateYSymmetricThrusters(float primaryDuty, float mirroredDuty) {
-//   int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
-//   int mirroredDutyCycle = (int)((mirroredDuty / 100.0) * ((1 << pwmResolution) - 1));
+void updateYSymmetricThrusters(float primaryDuty, float mirroredDuty) {
+  int primaryDutyCycle = (int)((primaryDuty / 100.0) * ((1 << pwmResolution) - 1));
+  int mirroredDutyCycle = (int)((mirroredDuty / 100.0) * ((1 << pwmResolution) - 1));
 
-//   ledcWrite(pwmChannelBase + BACK_PIN2, primaryDutyCycle);    // Pin 32
-//   ledcWrite(pwmChannelBase + FORWARD_PIN2, primaryDutyCycle); // Pin 5
-//   ledcWrite(pwmChannelBase + BACK_PIN1, mirroredDutyCycle);   // Pin 25
-//   ledcWrite(pwmChannelBase + FORWARD_PIN1, mirroredDutyCycle);// Pin 26
+  ledcWrite(pwmChannelBase + BACK_PIN2, primaryDutyCycle);    // Pin 32
+  ledcWrite(pwmChannelBase + FORWARD_PIN2, primaryDutyCycle); // Pin 5
+  ledcWrite(pwmChannelBase + BACK_PIN1, mirroredDutyCycle);   // Pin 25
+  ledcWrite(pwmChannelBase + FORWARD_PIN1, mirroredDutyCycle);// Pin 26
 
-// }
+}
 
 
-// // Function to update all thrusters (for initialization or other needs)
-// void updateAllThrusters(float percentage) {
-//   dutyCycle = (int)((percentage / 100.0) * ((1 << pwmResolution) - 1));
+// Function to update all thrusters (for initialization or other needs)
+void updateAllThrusters(float percentage) {
+  dutyCycle = (int)((percentage / 100.0) * ((1 << pwmResolution) - 1));
  
-//   for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
-//     ledcWrite(pwmChannelBase + i, dutyCycle);
-//   }
-// }
+  for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
+    ledcWrite(pwmChannelBase + i, dutyCycle);
+  }
+}
