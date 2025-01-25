@@ -12,14 +12,14 @@ float desiredDutyPercentage = 7.497; // Initial duty cycle percentage
 int dutyCycle;
 
 // Pin indices for movement (names swapped to match actual direction)
-const int BACK_PIN1 = 2;     // Index for pin 25
-const int BACK_PIN2 = 4;     // Index for pin 32
-const int FORWARD_PIN1 = 5;  // Index for pin 5
-const int FORWARD_PIN2 = 1;  // Index for pin 26
-const int U1 = 0;     // Index for pin 27
-const int U2 = 3;     // Index for pin 33
-const int U3 = 6;     // Index for pin 18
-const int U4 = 7;     // Index for pin 19
+const int BACK_PIN1 = 7;     // Index for pin 25
+const int BACK_PIN2 = 0;     // Index for pin 32
+const int FORWARD_PIN1 = 4;  // Index for pin 5
+const int FORWARD_PIN2 = 3;  // Index for pin 26
+const int U1 = 6;     // Index for pin 27
+const int U2 = 5;     // Index for pin 33
+const int U3 = 1;     // Index for pin 18
+const int U4 = 2;     // Index for pin 19
 
 
 // Center point for duty cycle calculations
@@ -51,15 +51,15 @@ void setup() {
   Serial.println("  b8.5  -> backward");
   Serial.println("  r8    -> right");
  
-  // // Loop through all pins and configure PWM
-  // for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
-  //   int channel = pwmChannelBase + i;
-  //   ledcSetup(channel, pwmFrequency, pwmResolution);
-  //   ledcAttachPin(pwmPins[i], channel);
-  // }
+  // Loop through all pins and configure PWM
+  for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
+    int channel = pwmChannelBase + i;
+    ledcSetup(channel, pwmFrequency, pwmResolution);
+    ledcAttachPin(pwmPins[i], channel);
+  }
  
-  // // Set initial duty cycle
-  // updateAllThrusters(desiredDutyPercentage);
+  // Set initial duty cycle
+  updateAllThrusters(desiredDutyPercentage);
 
   // Initialize pressure sensor
   // Returns true if initialization was successful
@@ -101,6 +101,9 @@ void loop() {
   // Total control output
   output = proportional + integral + derivative;
   output = constrain(output, -thrustLimit, thrustLimit);
+
+  // Limit output if error is too high
+  if (error > 1) output = 0;
 
   // Constrain output to within PWM limits
   float depth_control = CENTER_DUTY + 2 * output;
