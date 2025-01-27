@@ -192,9 +192,13 @@ void setup() {
   // Set initial duty cycle
   for (int i = 0; i < 8; i++) runThruster(i, 0);
 
+  delay(1000);
+
   // Initialize IMU
   if(!accel.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
   if(!mag.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+
+  delay(1000);
 
   // Initialize pressure sensor
   // Returns true if initialization was successful
@@ -209,6 +213,8 @@ void setup() {
 
   depthSensor.setModel(MS5837::MS5837_30BA);
   depthSensor.setFluidDensity(997);
+
+  Serial.println("AUV Initialized");
 }
 
 void loop() {
