@@ -113,25 +113,27 @@ float pTarget = 0;
 float pOffset = 0;
 
 // Yaw Control Parameters and Values
-float yP = -1.67173556453345;
-float yI = 0.000;
-float yD = 0;
-float yIE = 0.0; // Integral error
-float yPE = 0; // Previous error
-float yIn;
-float yOut;
-float yTarget = 0;
-float yOffset = 0;
+float wP = -1.67173556453345;
+float wI = 0.000;
+float wD = 0;
+float wIE = 0.0; // Integral error
+float wPE = 0; // Previous error
+float wIn;
+float wOut;
+float wTarget = 0;
+float wOffset = 0;
 
 // Safety Parameters
 int thrustLimit = 1;
 const float INTEGRAL_LIMIT = 100.0;
 
 // Debug Parameters
+bool xDebug = false;
+bool yDebug = false;
 bool zDebug = false;
 bool rDebug = false;
 bool pDebug = false;
-bool yDebug = false;
+bool wDebug = false;
 
 void setup() {
   // Initialize Serial Monitor
@@ -168,16 +170,16 @@ void setup() {
   // Initialize pressure sensor
   // Returns true if initialization was successful
   // We can't continue with the rest of the program unless we can initialize the sensor
-  while (!depthSensor.init()) {
-    Serial.println("Init failed!");
-    Serial.println("Are SDA/SCL connected correctly?");
-    Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
-    Serial.println("\n\n\n");
-    delay(5000);
-  }
+  // while (!depthSensor.init()) {
+  //   Serial.println("Init failed!");
+  //   Serial.println("Are SDA/SCL connected correctly?");
+  //   Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
+  //   Serial.println("\n\n\n");
+  //   delay(5000);
+  // }
 
-  depthSensor.setModel(MS5837::MS5837_30BA);
-  depthSensor.setFluidDensity(997);
+  // depthSensor.setModel(MS5837::MS5837_30BA);
+  // depthSensor.setFluidDensity(997);
 
   // Calculate pseudoinverse
   allocationMatrix = pseudoInverse(originalAllocationMatrix);
@@ -188,15 +190,15 @@ void loop() {
   // sensors_event_t mag_event;
   // sensors_vec_t   orientation;
 
-  // Read depth data from sensor
-  depthSensor.read();
-  zIn = depthSensor.depth() - zOffset;
+  // // Read depth data from sensor
+  // depthSensor.read();
+  // zIn = depthSensor.depth() - zOffset;
 
-  //  Calculate all 4 (later 6) PIDs
-  calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE); // Depth (z)
-  calculatePID(rIn, rOut, rTarget, rP, rI, rD, rIE, rPE); // Roll (r)
-  calculatePID(pIn, pOut, pTarget, pP, pI, pD, pIE, pPE); // Pitch (p)
-  calculatePID(yIn, yOut, yTarget, yP, yI, yD, yIE, yPE); // Yaw (y)
+  // //  Calculate all 4 (later 6) PIDs
+  // calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE); // Depth (z)
+  // calculatePID(rIn, rOut, rTarget, rP, rI, rD, rIE, rPE); // Roll (r)
+  // calculatePID(pIn, pOut, pTarget, pP, pI, pD, pIE, pPE); // Pitch (p)
+  // calculatePID(wIn, wOut, wTarget, wP, wI, wD, wIE, wPE); // Yaw (w)
 
   // Combine output from all PID controllers into one control array
   BLA::Matrix<6, 1> controlMatrix = {
@@ -319,25 +321,25 @@ void loop() {
     Serial.println(pOut);
   }
 
-  if (yDebug) {
+  if (wDebug) {
     Serial.println("Yaw Control Params:");
     Serial.print("P: ");
-    Serial.print(yP);
+    Serial.print(wP);
     Serial.print(", ");
     Serial.print("I: ");
-    Serial.print(yI);
+    Serial.print(wI);
     Serial.print(", ");
     Serial.print("D: ");
-    Serial.print(yD);
+    Serial.print(wD);
     Serial.print(", ");
     Serial.print("In: ");
-    Serial.print(yIn);
+    Serial.print(wIn);
     Serial.print(", ");
     Serial.print("Target: ");
-    Serial.print(yTarget);
+    Serial.print(wTarget);
     Serial.print(", ");
     Serial.print("Out: ");
-    Serial.println(yOut);
+    Serial.println(wOut);
   }
 
   // Allow user to change variable values during runtime
@@ -399,12 +401,12 @@ void loop() {
     else if (varName == "pDebug") pDebug = !pDebug;
 
     // Yaw variables
-    else if (varName == "yP") yP = newValue.toFloat();
-    else if (varName == "yI") yI = newValue.toFloat();
-    else if (varName == "yD") yD = newValue.toFloat();
-    else if (varName == "yTarget") yTarget = newValue.toFloat();
-    else if (varName == "yOffset") yOffset += yIn;
-    else if (varName == "yDebug") yDebug = !yDebug;
+    else if (varName == "wP") wP = newValue.toFloat();
+    else if (varName == "wI") wI = newValue.toFloat();
+    else if (varName == "wD") wD = newValue.toFloat();
+    else if (varName == "wTarget") wTarget = newValue.toFloat();
+    else if (varName == "wOffset") wOffset += wIn;
+    else if (varName == "wDebug") wDebug = !wDebug;
 
     // Error case
     else {
@@ -412,6 +414,8 @@ void loop() {
       Serial.println(varName + " is not an accepted variable");
     }
   }
+
+  delay(100); // TODO: remove if PID delay is too much
 }
 
 template <int rows, int cols>
