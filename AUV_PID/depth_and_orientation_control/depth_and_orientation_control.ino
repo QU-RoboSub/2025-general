@@ -11,11 +11,22 @@ using namespace BLA;
 #include <Adafruit_9DOF.h>
 #include <Adafruit_L3GD20_U.h>
 
+// Temp sensor library
+#include "max6675.h"
+
 MS5837 depthSensor;
 
+sensors_event_t accel_event;
+sensors_event_t mag_event;
+sensors_vec_t   orientation;
 Adafruit_9DOF                 dof   = Adafruit_9DOF();
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
 Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
+
+int thermoDO = 4;
+int thermoCS = 2;
+int thermoCLK = 15;
+MAX6675 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 // Define PWM parameters
 const int pwmPins[] = {27, 26, 25, 33, 32, 5, 18, 19}; // GPIO pins for PWM
@@ -162,6 +173,7 @@ const float INTEGRAL_LIMIT = 100.0;
 
 // Debug Parameters
 bool thrusterDebug = false;
+bool tempDebug = true;
 bool xDebug = false;
 bool yDebug = false;
 bool zDebug = false;
@@ -192,13 +204,13 @@ void setup() {
   // Set initial duty cycle
   for (int i = 0; i < 8; i++) runThruster(i, 0);
 
-  delay(1000);
+  delay(2000);
 
   // Initialize IMU
   if(!accel.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
   if(!mag.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
 
-  delay(1000);
+  delay(2000);
 
   // Initialize pressure sensor
   // Returns true if initialization was successful
@@ -218,34 +230,34 @@ void setup() {
 }
 
 void loop() {
-  sensors_event_t accel_event;
-  sensors_event_t mag_event;
-  sensors_vec_t   orientation;
+  if (accel.begin() && mag.begin()) {
+    // Get sensor events
+    accel.getEvent(&accel_event);
+    mag.getEvent(&mag_event);
 
-  // Get sensor events
-  accel.getEvent(&accel_event);
-  mag.getEvent(&mag_event);
+    // Get orientation from Adafruit's fusion algorithm
+    if (dof.fusionGetOrientation(&accel_event, &mag_event, &orientation)) {
+      // Raw sensor fusion values
+      float rawRoll = orientation.roll;
+      float rawPitch = orientation.pitch;
+      float rawYaw = orientation.heading;
 
-  // Get orientation from Adafruit's fusion algorithm
-  if (dof.fusionGetOrientation(&accel_event, &mag_event, &orientation)) {
-    // Raw sensor fusion values
-    float rawRoll = orientation.roll;
-    float rawPitch = orientation.pitch;
-    float rawYaw = orientation.heading;
+      // Update Kalman filters for each angle
+      calculateKalman(rollEst,    P_roll,    rawRoll,    Q_roll,    R_roll);
+      calculateKalman(pitchEst,   P_pitch,   rawPitch,   Q_pitch,   R_pitch);
+      calculateKalman(yawEst,     P_yaw,     rawYaw,     Q_yaw,     R_yaw);
 
-    // Update Kalman filters for each angle
-    calculateKalman(rollEst,    P_roll,    rawRoll,    Q_roll,    R_roll);
-    calculateKalman(pitchEst,   P_pitch,   rawPitch,   Q_pitch,   R_pitch);
-    calculateKalman(yawEst,     P_yaw,     rawYaw,     Q_yaw,     R_yaw);
-
-    rIn = rollEst - rOffset;
-    pIn = pitchEst - pOffset;
-    wIn = yawEst - wOffset;
+      rIn = rollEst - rOffset;
+      pIn = pitchEst - pOffset;
+      wIn = yawEst - wOffset;
+    }
   }
 
   // Read depth data from sensor
-  depthSensor.read();
-  zIn = depthSensor.depth() - zOffset;
+  if (depthSensor.init()) {
+    depthSensor.read();
+    zIn = depthSensor.depth() - zOffset;
+  }
 
   //  Calculate all 4 (later 6) PIDs
   calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE); // Depth (z)
@@ -277,6 +289,12 @@ void loop() {
     Serial.println("Thruster Output Matrix:");
     for (int i = 0; i < 8; i++) Serial.print(String(thrusterInputMatrix(i)) + ", ");
     Serial.println('\n');
+  }
+
+  if (tempDebug) {
+    Serial.print("Temperature Reading: "); 
+    Serial.print(thermocouple.readCelsius());
+    Serial.println(" C"); 
   }
 
   if (xDebug) {
@@ -421,6 +439,7 @@ void loop() {
     if (varName == "kill") thrustLimit = 0;
     else if (varName == "arm") thrustLimit = 1;
     else if (varName == "thrusterDebug") thrusterDebug = !thrusterDebug;
+    else if (varName == "tempDebug") tempDebug = !tempDebug;
 
     // Surge variables
     else if (varName == "xP") xP = newValue.toFloat();
