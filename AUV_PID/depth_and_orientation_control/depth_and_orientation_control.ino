@@ -40,7 +40,16 @@ const float CENTER_DUTY = 7.5;
 
 // Thrust allocation matrix
 // TODO: Calculate and calibrate based on distance, location, orientation, etc.
-BLA::Matrix<8, 6> allocationMatrix;
+BLA::Matrix<8, 6> allocationMatrix = {
+  -0.250000000000000,  0.250000000000000,  6.93889390390722e-18,  2.08166817117217e-17,  1.38777878078145e-17, -0.250000000000000,
+    0.000000000000000,  0.000000000000000, -0.250000000000000,  0.250000000000000, -0.250000000000000,  1.38777878078145e-17,
+    0.000000000000000,  0.000000000000000, -0.250000000000000, -0.250000000000000, -0.250000000000000,  0.000000000000000,
+    0.250000000000000, -0.250000000000000, -2.54426109809932e-17,  4.39463280580791e-17, -4.62592926927149e-18, -0.250000000000000,
+    0.250000000000000,  0.250000000000000,  1.61907524424502e-17,  2.31296463463574e-18,  2.31296463463574e-17,  0.250000000000000,
+    0.000000000000000,  0.000000000000000, -0.250000000000000,  0.250000000000000,  0.250000000000000,  0.000000000000000,
+    0.000000000000000,  0.000000000000000, -0.250000000000000, -0.250000000000000,  0.250000000000000,  0.000000000000000,
+  -0.250000000000000, -0.250000000000000, -1.61907524424502e-17,  2.54426109809932e-17,  4.62592926927149e-18,  0.250000000000000
+};
 BLA::Matrix<6, 8> originalAllocationMatrix = {
 //27, 26, 25, 33, 32,  5, 18, 19
   -1,  0,  0,  1,  1,  0,  0, -1, // X axis allocation
@@ -51,8 +60,14 @@ BLA::Matrix<6, 8> originalAllocationMatrix = {
   -1,  0,  0, -1,  1,  0,  0,  1  // yaw axis allocation
 };
 
-// Control matrix where all PID outputs are stored
-BLA::Matrix<6, 1> controlMatrix;
+// Inertial control matrix where all PID outputs are stored
+BLA::Matrix<6, 1> inertialControlMatrix;
+
+// Control matrix in the body frame
+BLA::Matrix<6, 1> bodyControlMatrix;
+
+// Rotation matrix to transform control matrix from inertial frame to body frame
+BLA::Matrix<3, 3> rotationMatrix;
 
 // Thruster duty cycles
 BLA::Matrix<8, 1> thrusterInputMatrix;
@@ -86,7 +101,7 @@ float zD = 0;
 float zIE = 0.0; // Integral error
 float zPE = 0; // Previous error
 float zIn;
-float zOut;
+float zOut = 1;
 float zTarget = 0.3;
 float zOffset = 0;
 
@@ -96,7 +111,7 @@ float rI = 0.000;
 float rD = 0;
 float rIE = 0.0; // Integral error
 float rPE = 0; // Previous error
-float rIn;
+float rIn = 45;
 float rOut;
 float rTarget = 0;
 float rOffset = 0;
@@ -107,7 +122,7 @@ float pI = 0.000;
 float pD = 0;
 float pIE = 0.0; // Integral error
 float pPE = 0; // Previous error
-float pIn;
+float pIn = 0;
 float pOut;
 float pTarget = 0;
 float pOffset = 0;
@@ -118,7 +133,7 @@ float wI = 0.000;
 float wD = 0;
 float wIE = 0.0; // Integral error
 float wPE = 0; // Previous error
-float wIn;
+float wIn = 0;
 float wOut;
 float wTarget = 0;
 float wOffset = 0;
@@ -128,6 +143,7 @@ int thrustLimit = 1;
 const float INTEGRAL_LIMIT = 100.0;
 
 // Debug Parameters
+bool thrusterDebug = false;
 bool xDebug = false;
 bool yDebug = false;
 bool zDebug = false;
@@ -135,25 +151,28 @@ bool rDebug = false;
 bool pDebug = false;
 bool wDebug = false;
 
+template <int rows, int cols>
+BLA::Matrix<cols, rows> pseudoInverse(BLA::Matrix<rows, cols>& A) {
+  BLA::Matrix<cols, rows> AT = ~A;
+  BLA::Matrix<cols, cols> ATA = AT * A;
+  BLA::Matrix<cols, cols> ATA_inv = Invert(ATA);
+  return ATA_inv * AT;
+}
+
 void setup() {
   // Initialize Serial Monitor
   Serial.begin(9600);
   Wire.begin();
-  Serial.println("Enter command for movement:");
-  Serial.println("Examples:");
-  Serial.println("  f8.5  -> forward");
-  Serial.println("  b8.5  -> backward");
-  Serial.println("  r8    -> right");
  
-  // Loop through all pins and configure PWM
-  for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
-    int channel = pwmChannelBase + i;
-    ledcSetup(channel, pwmFrequency, pwmResolution);
-    ledcAttachPin(pwmPins[i], channel);
-  }
+  // // Loop through all pins and configure PWM
+  // for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
+  //   int channel = pwmChannelBase + i;
+  //   ledcSetup(channel, pwmFrequency, pwmResolution);
+  //   ledcAttachPin(pwmPins[i], channel);
+  // }
  
-  // Set initial duty cycle
-  for (int i = 0; i < 8; i++) runThruster(i, 0);
+  // // Set initial duty cycle
+  // for (int i = 0; i < 8; i++) runThruster(i, 0);
 
   // // Initialize IMU
   // if(!accel.begin())
@@ -167,9 +186,9 @@ void setup() {
   //   while(1);
   // }
 
-  // Initialize pressure sensor
-  // Returns true if initialization was successful
-  // We can't continue with the rest of the program unless we can initialize the sensor
+  // // Initialize pressure sensor
+  // // Returns true if initialization was successful
+  // // We can't continue with the rest of the program unless we can initialize the sensor
   // while (!depthSensor.init()) {
   //   Serial.println("Init failed!");
   //   Serial.println("Are SDA/SCL connected correctly?");
@@ -180,9 +199,6 @@ void setup() {
 
   // depthSensor.setModel(MS5837::MS5837_30BA);
   // depthSensor.setFluidDensity(997);
-
-  // Calculate pseudoinverse
-  allocationMatrix = pseudoInverse(originalAllocationMatrix);
 }
 
 void loop() {
@@ -201,7 +217,7 @@ void loop() {
   // calculatePID(wIn, wOut, wTarget, wP, wI, wD, wIE, wPE); // Yaw (w)
 
   // Combine output from all PID controllers into one control array
-  BLA::Matrix<6, 1> controlMatrix = {
+  inertialControlMatrix = {
     xOut,
     yOut,
     zOut,
@@ -210,11 +226,31 @@ void loop() {
     yOut,
   };
 
-  // Allocate PID outputs to different thrusters based on allocation matrix (thrust allocation)
-  thrusterInputMatrix = allocationMatrix * controlMatrix;
+  // Apply orientation matrix to control matrix to get body frame
+  calculateRotationMatrix();
+  convertInertialToBodyMatrix();
 
-  // Send thrust commands to all thrusters
-  for (int i = 0; i < 8; i++) runThruster(i, thrusterInputMatrix(i));
+  // for (int i = 0; i < 3; i++){
+  //   for (int j = 0; j < 3; j++) Serial.print(String(rotationMatrix(i, j)) + ", ");
+  //   Serial.println('\n');
+  // }
+  // Serial.println('\n');
+
+  // for (int i = 0; i < 6; i++) Serial.print(String(bodyControlMatrix(i)) + ", ");
+  //   Serial.println('\n');
+
+  // Allocate PID outputs to different thrusters based on allocation matrix (thrust allocation)
+  thrusterInputMatrix = allocationMatrix * bodyControlMatrix;
+  // thrusterInputMatrix = allocationMatrix * inertialControlMatrix;
+
+  // // Send thrust commands to all thrusters
+  // for (int i = 0; i < 8; i++) runThruster(i, thrusterInputMatrix(i));
+
+  if (thrusterDebug) {
+    Serial.println("Thruster Output Matrix:");
+    for (int i = 0; i < 8; i++) Serial.print(String(thrusterInputMatrix(i)) + ", ");
+    Serial.println('\n');
+  }
 
   if (xDebug) {
     Serial.println("Surge Control Params:");
@@ -357,6 +393,7 @@ void loop() {
     // General functions
     if (varName == "kill") thrustLimit = 0;
     else if (varName == "arm") thrustLimit = 1;
+    else if (varName == "thrusterDebug") thrusterDebug = !thrusterDebug;
 
     // Surge variables
     else if (varName == "xP") xP = newValue.toFloat();
@@ -415,15 +452,48 @@ void loop() {
     }
   }
 
-  delay(100); // TODO: remove if PID delay is too much
+  delay(1000); // TODO: remove if PID delay is too much
 }
 
-template <int rows, int cols>
-BLA::Matrix<cols, rows> pseudoInverse(BLA::Matrix<rows, cols>& A) {
-  BLA::Matrix<cols, rows> AT = ~A;
-  BLA::Matrix<cols, cols> ATA = AT * A;
-  BLA::Matrix<cols, cols> ATA_inv = Invert(ATA);
-  return ATA_inv * AT;
+void calculateRotationMatrix() {
+  // Precalculate cos and sin of each angle in radians
+  float cr = cos((rIn * 71.0) / 4068.0);
+  float sr = sin((rIn * 71.0) / 4068.0);
+  float cp = cos((pIn * 71.0) / 4068.0);
+  float sp = sin((pIn * 71.0) / 4068.0);
+  float cw = cos((wIn * 71.0) / 4068.0);
+  float sw = sin((wIn * 71.0) / 4068.0);
+
+  // https://ae640a.github.io/assets/winter17/slides/Lecture%203.pdf (page 11)
+  rotationMatrix = {
+    cp*cw,              cp*sw,              -sp,
+    sr*sp*cw - cr*sw,   sr*sp*sw + cr*cw,   sr*cp,
+    cr*sp*cw + sr*sw,   cr*sp*sw - sr*cw,   cr*cp
+  };
+}
+
+void convertInertialToBodyMatrix() {
+  // Transform linear control signals (first 3 entries)
+  BLA::Matrix<3, 1> ctrlLinear = {inertialControlMatrix(0), inertialControlMatrix(1), inertialControlMatrix(2)};
+  BLA::Matrix<3, 1> transformedLinear = rotationMatrix * ctrlLinear;
+
+  for (int i = 0; i < 3; i++){
+    for (int j = 0; j < 3; j++) Serial.print(String(rotationMatrix(i, j)) + ", ");
+    Serial.println('\n');
+  }
+  Serial.println('\n');
+
+  for (int i = 0; i < 3; i++) Serial.print(String(ctrlLinear(i)) + ", ");
+  Serial.println('\n');
+
+  bodyControlMatrix(0) = transformedLinear(0);
+  bodyControlMatrix(1) = transformedLinear(1);
+  bodyControlMatrix(2) = transformedLinear(2);
+
+  // Copy rotational signals directly (last 3 entries)
+  bodyControlMatrix(3) = inertialControlMatrix(3);
+  bodyControlMatrix(4) = inertialControlMatrix(4);
+  bodyControlMatrix(5) = inertialControlMatrix(5);
 }
 
 void calculatePID(float &input, float &output, float &target, float p, float i, float d, float &integralError, float &prevError) {
