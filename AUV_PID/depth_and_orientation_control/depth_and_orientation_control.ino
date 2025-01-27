@@ -363,6 +363,7 @@ void loop() {
     else if (varName == "xTarget") xTarget = newValue.toFloat();
     else if (varName == "xOffset") xOffset += xIn;
     else if (varName == "xDebug") xDebug = !xDebug;
+    else if (varName == "xOut") xOut = newValue.toFloat(); // Remove this if we PID control for surge
 
     // Sway variables
     else if (varName == "yP") yP = newValue.toFloat();
@@ -371,6 +372,7 @@ void loop() {
     else if (varName == "yTarget") yTarget = newValue.toFloat();
     else if (varName == "yOffset") yOffset += yIn;
     else if (varName == "yDebug") yDebug = !yDebug;
+    else if (varName == "yOut") yOut = newValue.toFloat(); // Remove this if we PID control for sway
 
     // Heave variables
     else if (varName == "zP") zP = newValue.toFloat();
