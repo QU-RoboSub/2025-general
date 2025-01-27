@@ -5,17 +5,17 @@ using namespace BLA;
 // Depth sensor library
 #include "MS5837.h"
 
-// // IMU libraries
-// #include <Adafruit_Sensor.h>
-// #include <Adafruit_LSM303_U.h>
-// #include <Adafruit_9DOF.h>
-// #include <Adafruit_L3GD20_U.h>
+// IMU libraries
+#include <Adafruit_Sensor.h>
+#include <Adafruit_LSM303_U.h>
+#include <Adafruit_9DOF.h>
+#include <Adafruit_L3GD20_U.h>
 
 MS5837 depthSensor;
 
-// Adafruit_9DOF                 dof   = Adafruit_9DOF();
-// Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
-// Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
+Adafruit_9DOF                 dof   = Adafruit_9DOF();
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
+Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
 
 // Define PWM parameters
 const int pwmPins[] = {27, 26, 25, 33, 32, 5, 18, 19}; // GPIO pins for PWM
@@ -73,7 +73,7 @@ BLA::Matrix<3, 3> rotationMatrix;
 BLA::Matrix<8, 1> thrusterInputMatrix;
 
 // Surge Control Parameters and Values
-float xP = -1.67173556453345;
+float xP = 1;
 float xI = 0.000;
 float xD = 0;
 float xIE = 0.0; // Integral error
@@ -84,7 +84,7 @@ float xTarget = 0;
 float xOffset = 0;
 
 // Sway Control Parameters and Values
-float yP = -1.67173556453345;
+float yP = 1;
 float yI = 0.000;
 float yD = 0;
 float yIE = 0.0; // Integral error
@@ -95,48 +95,66 @@ float yTarget = 0;
 float yOffset = 0;
 
 // Heave Control Parameters and Values
-float zP = -1.67173556453345;
+float zP = 1.67173556453345;
 float zI = 0.000;
 float zD = 0;
 float zIE = 0.0; // Integral error
 float zPE = 0; // Previous error
 float zIn;
-float zOut = 1;
+float zOut;
 float zTarget = 0.3;
 float zOffset = 0;
 
 // Roll Control Parameters and Values
-float rP = -1.67173556453345;
+float rP = 0.1;
 float rI = 0.000;
 float rD = 0;
 float rIE = 0.0; // Integral error
 float rPE = 0; // Previous error
-float rIn = 45;
+float rIn;
 float rOut;
 float rTarget = 0;
 float rOffset = 0;
 
+// Roll Kalman Filter Variables
+static float rollEst = 0.0;
+static float P_roll  = 1.0;
+float Q_roll = 1;
+float R_roll = 0.0003;
+
 // Pitch Control Parameters and Values
-float pP = -1.67173556453345;
+float pP = 0.1;
 float pI = 0.000;
 float pD = 0;
 float pIE = 0.0; // Integral error
 float pPE = 0; // Previous error
-float pIn = 0;
+float pIn;
 float pOut;
 float pTarget = 0;
 float pOffset = 0;
 
+// Pitch Kalman Filter Variables
+static float pitchEst = 0.0;
+static float P_pitch = 1.0;
+float Q_pitch = 1;
+float R_pitch = 0.0003;
+
 // Yaw Control Parameters and Values
-float wP = -1.67173556453345;
+float wP = 0.1;
 float wI = 0.000;
 float wD = 0;
 float wIE = 0.0; // Integral error
 float wPE = 0; // Previous error
-float wIn = 0;
+float wIn;
 float wOut;
 float wTarget = 0;
 float wOffset = 0;
+
+// Yaw Kalman Filter Variables
+static float yawEst = 0.0;
+static float P_yaw = 1.0;
+float Q_yaw = 1;
+float R_yaw = 0.0003;
 
 // Safety Parameters
 int thrustLimit = 1;
@@ -164,57 +182,70 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
  
-  // // Loop through all pins and configure PWM
-  // for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
-  //   int channel = pwmChannelBase + i;
-  //   ledcSetup(channel, pwmFrequency, pwmResolution);
-  //   ledcAttachPin(pwmPins[i], channel);
-  // }
- 
-  // // Set initial duty cycle
-  // for (int i = 0; i < 8; i++) runThruster(i, 0);
+  // Loop through all pins and configure PWM
+  for (int i = 0; i < sizeof(pwmPins) / sizeof(pwmPins[0]); i++) {
+    int channel = pwmChannelBase + i;
+    ledcSetup(channel, pwmFrequency, pwmResolution);
+    ledcAttachPin(pwmPins[i], channel);
+  }
 
-  // // Initialize IMU
-  // if(!accel.begin())
-  // {
-  //   Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
-  //   while(1);
-  // }
-  // if(!mag.begin())
-  // {
-  //   Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
-  //   while(1);
-  // }
+  // Set initial duty cycle
+  for (int i = 0; i < 8; i++) runThruster(i, 0);
 
-  // // Initialize pressure sensor
-  // // Returns true if initialization was successful
-  // // We can't continue with the rest of the program unless we can initialize the sensor
-  // while (!depthSensor.init()) {
-  //   Serial.println("Init failed!");
-  //   Serial.println("Are SDA/SCL connected correctly?");
-  //   Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
-  //   Serial.println("\n\n\n");
-  //   delay(5000);
-  // }
+  // Initialize IMU
+  if(!accel.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+  if(!mag.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
 
-  // depthSensor.setModel(MS5837::MS5837_30BA);
-  // depthSensor.setFluidDensity(997);
+  // Initialize pressure sensor
+  // Returns true if initialization was successful
+  // We can't continue with the rest of the program unless we can initialize the sensor
+  while (!depthSensor.init()) {
+    Serial.println("Init failed!");
+    Serial.println("Are SDA/SCL connected correctly?");
+    Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
+    Serial.println("\n\n\n");
+    delay(5000);
+  }
+
+  depthSensor.setModel(MS5837::MS5837_30BA);
+  depthSensor.setFluidDensity(997);
 }
 
 void loop() {
-  // sensors_event_t accel_event;
-  // sensors_event_t mag_event;
-  // sensors_vec_t   orientation;
+  sensors_event_t accel_event;
+  sensors_event_t mag_event;
+  sensors_vec_t   orientation;
 
-  // // Read depth data from sensor
-  // depthSensor.read();
-  // zIn = depthSensor.depth() - zOffset;
+  // Get sensor events
+  accel.getEvent(&accel_event);
+  mag.getEvent(&mag_event);
 
-  // //  Calculate all 4 (later 6) PIDs
-  // calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE); // Depth (z)
-  // calculatePID(rIn, rOut, rTarget, rP, rI, rD, rIE, rPE); // Roll (r)
-  // calculatePID(pIn, pOut, pTarget, pP, pI, pD, pIE, pPE); // Pitch (p)
-  // calculatePID(wIn, wOut, wTarget, wP, wI, wD, wIE, wPE); // Yaw (w)
+  // Get orientation from Adafruit's fusion algorithm
+  if (dof.fusionGetOrientation(&accel_event, &mag_event, &orientation)) {
+    // Raw sensor fusion values
+    float rawRoll = orientation.roll;
+    float rawPitch = orientation.pitch;
+    float rawYaw = orientation.heading;
+
+    // Update Kalman filters for each angle
+    calculateKalman(rollEst,    P_roll,    rawRoll,    Q_roll,    R_roll);
+    calculateKalman(pitchEst,   P_pitch,   rawPitch,   Q_pitch,   R_pitch);
+    calculateKalman(yawEst,     P_yaw,     rawYaw,     Q_yaw,     R_yaw);
+
+    rIn = rollEst - rOffset;
+    pIn = pitchEst - pOffset;
+    wIn = yawEst - wOffset;
+  }
+
+  // Read depth data from sensor
+  depthSensor.read();
+  zIn = depthSensor.depth() - zOffset;
+
+  //  Calculate all 4 (later 6) PIDs
+  calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE); // Depth (z)
+  calculatePID(rIn, rOut, rTarget, rP, rI, rD, rIE, rPE); // Roll (r)
+  calculatePID(pIn, pOut, pTarget, pP, pI, pD, pIE, pPE); // Pitch (p)
+  calculatePID(wIn, wOut, wTarget, wP, wI, wD, wIE, wPE); // Yaw (w)
 
   // Combine output from all PID controllers into one control array
   inertialControlMatrix = {
@@ -230,21 +261,11 @@ void loop() {
   calculateRotationMatrix();
   convertInertialToBodyMatrix();
 
-  // for (int i = 0; i < 3; i++){
-  //   for (int j = 0; j < 3; j++) Serial.print(String(rotationMatrix(i, j)) + ", ");
-  //   Serial.println('\n');
-  // }
-  // Serial.println('\n');
-
-  // for (int i = 0; i < 6; i++) Serial.print(String(bodyControlMatrix(i)) + ", ");
-  //   Serial.println('\n');
-
   // Allocate PID outputs to different thrusters based on allocation matrix (thrust allocation)
   thrusterInputMatrix = allocationMatrix * bodyControlMatrix;
-  // thrusterInputMatrix = allocationMatrix * inertialControlMatrix;
 
-  // // Send thrust commands to all thrusters
-  // for (int i = 0; i < 8; i++) runThruster(i, thrusterInputMatrix(i));
+  // Send thrust commands to all thrusters
+  for (int i = 0; i < 8; i++) runThruster(i, thrusterInputMatrix(i));
 
   if (thrusterDebug) {
     Serial.println("Thruster Output Matrix:");
@@ -452,7 +473,24 @@ void loop() {
     }
   }
 
-  delay(1000); // TODO: remove if PID delay is too much
+  delay(100); // TODO: remove if PID delay is too much
+}
+
+void calculateKalman(float& x_est, float& P_est, float z_meas, float Q, float R) {
+  // 1. Predict step
+  float x_pred = x_est;     // No state evolution in this simple model
+  float P_pred = P_est + Q; // Add process noise
+
+  // 2. Update step
+  float y = z_meas - x_pred;    // Innovation
+  float S = P_pred + R;         // Innovation covariance
+  float K = P_pred / S;         // Kalman gain
+
+  // New state estimate
+  x_est = x_pred + K * y;
+
+  // New error covariance
+  P_est = (1.0f - K) * P_pred;
 }
 
 void calculateRotationMatrix() {
@@ -476,15 +514,6 @@ void convertInertialToBodyMatrix() {
   // Transform linear control signals (first 3 entries)
   BLA::Matrix<3, 1> ctrlLinear = {inertialControlMatrix(0), inertialControlMatrix(1), inertialControlMatrix(2)};
   BLA::Matrix<3, 1> transformedLinear = rotationMatrix * ctrlLinear;
-
-  for (int i = 0; i < 3; i++){
-    for (int j = 0; j < 3; j++) Serial.print(String(rotationMatrix(i, j)) + ", ");
-    Serial.println('\n');
-  }
-  Serial.println('\n');
-
-  for (int i = 0; i < 3; i++) Serial.print(String(ctrlLinear(i)) + ", ");
-  Serial.println('\n');
 
   bodyControlMatrix(0) = transformedLinear(0);
   bodyControlMatrix(1) = transformedLinear(1);
@@ -514,10 +543,9 @@ void calculatePID(float &input, float &output, float &target, float p, float i, 
 
   // Total control output
   output = proportional + integral + derivative;
-  output = constrain(output, -thrustLimit, thrustLimit);
 
-  // Limit output if error is too high
-  if (error > 1) output = 0;
+  // // Limit output if error is too high
+  // if (error > 1) output = 0;
 }
 
 void runThruster(int index, float signal) {
