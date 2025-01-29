@@ -105,6 +105,9 @@ void loop() {
     else if (input == "k") {
       updateAllThrusters(desiredDutyPercentage);
     }
+    else if (input == "x") {
+      updateAllThrusters(9);
+    }
     else {
       Serial.println("Invalid command. Use format: f<duty_cycle>, b<duty_cycle>, or r<duty_cycle>");
     }

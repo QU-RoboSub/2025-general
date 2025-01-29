@@ -117,7 +117,7 @@ float zTarget = 0.3;
 float zOffset = 0;
 
 // Roll Control Parameters and Values
-float rP = 0.1;
+float rP = 0.01;
 float rI = 0.000;
 float rD = 0;
 float rIE = 0.0; // Integral error
@@ -125,7 +125,7 @@ float rPE = 0; // Previous error
 float rIn;
 float rOut;
 float rTarget = 0;
-float rOffset = 0;
+float rOffset = 111.5;
 
 // Roll Kalman Filter Variables
 static float rollEst = 0.0;
@@ -134,7 +134,7 @@ float Q_roll = 1;
 float R_roll = 0.0003;
 
 // Pitch Control Parameters and Values
-float pP = 0.1;
+float pP = 0.01;
 float pI = 0.000;
 float pD = 0;
 float pIE = 0.0; // Integral error
@@ -142,7 +142,7 @@ float pPE = 0; // Previous error
 float pIn;
 float pOut;
 float pTarget = 0;
-float pOffset = 0;
+float pOffset = 34.5;
 
 // Pitch Kalman Filter Variables
 static float pitchEst = 0.0;
@@ -151,7 +151,7 @@ float Q_pitch = 1;
 float R_pitch = 0.0003;
 
 // Yaw Control Parameters and Values
-float wP = 0.1;
+float wP = 0;
 float wI = 0.000;
 float wD = 0;
 float wIE = 0.0; // Integral error
@@ -260,10 +260,10 @@ void loop() {
   }
 
   //  Calculate all 4 (later 6) PIDs
-  calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE); // Depth (z)
-  calculatePID(rIn, rOut, rTarget, rP, rI, rD, rIE, rPE); // Roll (r)
-  calculatePID(pIn, pOut, pTarget, pP, pI, pD, pIE, pPE); // Pitch (p)
-  calculatePID(wIn, wOut, wTarget, wP, wI, wD, wIE, wPE); // Yaw (w)
+  calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE, false); // Depth (z)
+  calculatePID(rIn, rOut, rTarget, rP, rI, rD, rIE, rPE, true); // Roll (r)
+  calculatePID(pIn, pOut, pTarget, pP, pI, pD, pIE, pPE, true); // Pitch (p)
+  calculatePID(wIn, wOut, wTarget, wP, wI, wD, wIE, wPE, true); // Yaw (w)
 
   // Combine output from all PID controllers into one control array
   inertialControlMatrix = {
@@ -550,7 +550,7 @@ void convertInertialToBodyMatrix() {
   bodyControlMatrix(5) = inertialControlMatrix(5);
 }
 
-void calculatePID(float &input, float &output, float &target, float p, float i, float d, float &integralError, float &prevError) {
+void calculatePID(float &input, float &output, float &target, float p, float i, float d, float &integralError, float &prevError, bool isAngle) {
   // Calculate error
   float error = target - input;
 
@@ -568,6 +568,14 @@ void calculatePID(float &input, float &output, float &target, float p, float i, 
 
   // Total control output
   output = proportional + integral + derivative;
+
+  // If this is for an angular axis, make sure the error is within -180 to 180
+  // For e.g, if in=10 and target=350, error should be 20, not 340
+  // For e.g, if in=350 and target=10, error should be 20, not -340
+  if (isAngle) {
+    if (error < -180) error += 360;
+    else if (error > 180) erorr -= 360;
+  }
 
   // // Limit output if error is too high
   // if (error > 1) output = 0;
