@@ -563,7 +563,7 @@ void calculatePID(float &input, float &output, float &target, float p, float i, 
 
 void runThruster(int index, float signal) {
   // Make sure signal is from -1 to 1 and convert to duty cycle
-  float duty = CENTER_DUTY + 2 * signal;
+  float duty = CENTER_DUTY + 2 * (signal * thrustLimit);
   int dutyCycle = (int)((duty / 100.0) * ((1 << pwmResolution) - 1));
-  ledcWrite(pwmChannelBase + index, dutyCycle * thrustLimit);
+  ledcWrite(pwmChannelBase + index, dutyCycle);
 }
