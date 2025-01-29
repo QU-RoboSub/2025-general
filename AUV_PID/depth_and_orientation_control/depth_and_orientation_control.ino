@@ -260,6 +260,7 @@ void loop() {
 
   if (thrusterDebug) {
     Serial.println("Thruster Output Matrix:");
+    Serial.println(thrustLimit);
     for (int i = 0; i < 8; i++) Serial.print(String(thrusterInputMatrix(i)) + ", ");
     Serial.println('\n');
   }
@@ -399,13 +400,13 @@ void loop() {
   // Allow user to change variable values during runtime
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
-    int valueSplitIndex = input.indexOf('=');
+    int splitIndex = input.indexOf('=');
 
     String varName, newValue;
-    if (valueSplitIndex == -1) varName = input;
+    if (splitIndex == -1) varName = input;
     else {
-      varName = input.substring(0, valueSplitIndex);
-      newValue = input.substring(valueSplitIndex + 1);
+      varName = input.substring(0, splitIndex);
+      newValue = input.substring(splitIndex + 1);
     }
 
     // General functions
@@ -562,7 +563,7 @@ void calculatePID(float &input, float &output, float &target, float p, float i, 
 
 void runThruster(int index, float signal) {
   // Make sure signal is from -1 to 1 and convert to duty cycle
-  float duty = CENTER_DUTY + 2 * constrain(signal, -thrustLimit, thrustLimit);
+  float duty = CENTER_DUTY + 2 * signal;
   int dutyCycle = (int)((duty / 100.0) * ((1 << pwmResolution) - 1));
-  ledcWrite(pwmChannelBase + index, dutyCycle);
+  ledcWrite(pwmChannelBase + index, dutyCycle * thrustLimit);
 }
