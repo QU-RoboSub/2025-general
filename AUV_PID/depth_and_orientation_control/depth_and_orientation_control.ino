@@ -206,12 +206,6 @@ void setup() {
 
   delay(2000);
 
-  // Initialize IMU
-  if(!accel.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
-  if(!mag.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
-
-  delay(2000);
-
   // Initialize pressure sensor
   // Returns true if initialization was successful
   // We can't continue with the rest of the program unless we can initialize the sensor
@@ -230,36 +224,15 @@ void setup() {
 }
 
 void loop() {
-  if (accel.begin() && mag.begin()) {
-    // Get sensor events
-    accel.getEvent(&accel_event);
-    mag.getEvent(&mag_event);
-
-    // Get orientation from Adafruit's fusion algorithm
-    if (dof.fusionGetOrientation(&accel_event, &mag_event, &orientation)) {
-      // Raw sensor fusion values
-      float rawRoll = orientation.roll;
-      float rawPitch = orientation.pitch;
-      float rawYaw = orientation.heading;
-
-      // Update Kalman filters for each angle
-      calculateKalman(rollEst,    P_roll,    rawRoll,    Q_roll,    R_roll);
-      calculateKalman(pitchEst,   P_pitch,   rawPitch,   Q_pitch,   R_pitch);
-      calculateKalman(yawEst,     P_yaw,     rawYaw,     Q_yaw,     R_yaw);
-
-      rIn = rollEst - rOffset;
-      pIn = pitchEst - pOffset;
-      wIn = yawEst - wOffset;
-    }
-  }
-
   // Read depth data from sensor
   if (depthSensor.init()) {
     depthSensor.read();
     zIn = depthSensor.depth() - zOffset;
   }
 
-  //  Calculate all 4 (later 6) PIDs
+  //  Calculate all 6 PIDs
+  // calculatePID(xIn, xOut, xTarget, xP, xI, xD, xIE, xPE, false); // Surge (x)
+  // calculatePID(yIn, yOut, yTarget, yP, yI, yD, yIE, yPE, false); // Sway (y)
   calculatePID(zIn, zOut, zTarget, zP, zI, zD, zIE, zPE, false); // Depth (z)
   calculatePID(rIn, rOut, rTarget, rP, rI, rD, rIE, rPE, true); // Roll (r)
   calculatePID(pIn, pOut, pTarget, pP, pI, pD, pIE, pPE, true); // Pitch (p)
@@ -426,13 +399,13 @@ void loop() {
   // Allow user to change variable values during runtime
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
-    int splitIndex = input.indexOf('=');
+    int valueSplitIndex = input.indexOf('=');
 
     String varName, newValue;
-    if (splitIndex == -1) varName = input;
+    if (valueSplitIndex == -1) varName = input;
     else {
-      varName = input.substring(0, splitIndex);
-      newValue = input.substring(splitIndex + 1);
+      varName = input.substring(0, valueSplitIndex);
+      newValue = input.substring(valueSplitIndex + 1);
     }
 
     // General functions
@@ -445,24 +418,27 @@ void loop() {
     else if (varName == "xP") xP = newValue.toFloat();
     else if (varName == "xI") xI = newValue.toFloat();
     else if (varName == "xD") xD = newValue.toFloat();
+    else if (varName == "xIn") xIn = newValue.toFloat();
     else if (varName == "xTarget") xTarget = newValue.toFloat();
     else if (varName == "xOffset") xOffset += xIn;
-    else if (varName == "xDebug") xDebug = !xDebug;
     else if (varName == "xOut") xOut = newValue.toFloat(); // Remove this if we PID control for surge
+    else if (varName == "xDebug") xDebug = !xDebug;
 
     // Sway variables
     else if (varName == "yP") yP = newValue.toFloat();
     else if (varName == "yI") yI = newValue.toFloat();
     else if (varName == "yD") yD = newValue.toFloat();
+    else if (varName == "yIn") yIn = newValue.toFloat();
     else if (varName == "yTarget") yTarget = newValue.toFloat();
     else if (varName == "yOffset") yOffset += yIn;
-    else if (varName == "yDebug") yDebug = !yDebug;
     else if (varName == "yOut") yOut = newValue.toFloat(); // Remove this if we PID control for sway
+    else if (varName == "yDebug") yDebug = !yDebug;
 
     // Heave variables
     else if (varName == "zP") zP = newValue.toFloat();
     else if (varName == "zI") zI = newValue.toFloat();
     else if (varName == "zD") zD = newValue.toFloat();
+    else if (varName == "zIn") zIn = newValue.toFloat();
     else if (varName == "zTarget") zTarget = newValue.toFloat();
     else if (varName == "zOffset") zOffset += zIn;
     else if (varName == "zDebug") zDebug = !zDebug;
@@ -471,6 +447,7 @@ void loop() {
     else if (varName == "rP") rP = newValue.toFloat();
     else if (varName == "rI") rI = newValue.toFloat();
     else if (varName == "rD") rD = newValue.toFloat();
+    else if (varName == "rIn") rIn = newValue.toFloat();
     else if (varName == "rTarget") rTarget = newValue.toFloat();
     else if (varName == "rOffset") rOffset += rIn;
     else if (varName == "rDebug") rDebug = !rDebug;
@@ -479,6 +456,7 @@ void loop() {
     else if (varName == "pP") pP = newValue.toFloat();
     else if (varName == "pI") pI = newValue.toFloat();
     else if (varName == "pD") pD = newValue.toFloat();
+    else if (varName == "pIn") pIn = newValue.toFloat();
     else if (varName == "pTarget") pTarget = newValue.toFloat();
     else if (varName == "pOffset") pOffset += pIn;
     else if (varName == "pDebug") pDebug = !pDebug;
@@ -487,6 +465,7 @@ void loop() {
     else if (varName == "wP") wP = newValue.toFloat();
     else if (varName == "wI") wI = newValue.toFloat();
     else if (varName == "wD") wD = newValue.toFloat();
+    else if (varName == "wIn") wIn = newValue.toFloat();
     else if (varName == "wTarget") wTarget = newValue.toFloat();
     else if (varName == "wOffset") wOffset += wIn;
     else if (varName == "wDebug") wDebug = !wDebug;
@@ -574,7 +553,7 @@ void calculatePID(float &input, float &output, float &target, float p, float i, 
   // For e.g, if in=350 and target=10, error should be 20, not -340
   if (isAngle) {
     if (error < -180) error += 360;
-    else if (error > 180) erorr -= 360;
+    else if (error > 180) error -= 360;
   }
 
   // // Limit output if error is too high
