@@ -134,7 +134,7 @@ float Q_roll = 1;
 float R_roll = 0.0003;
 
 // Pitch Control Parameters and Values
-float pP = 0.01;
+float pP = -0.01;
 float pI = 0.000;
 float pD = 0;
 float pIE = 0.0; // Integral error
@@ -168,7 +168,7 @@ float Q_yaw = 1;
 float R_yaw = 0.0003;
 
 // Safety Parameters
-int thrustLimit = 1;
+int thrustLimit = 0;
 const float INTEGRAL_LIMIT = 100.0;
 
 // Debug Parameters
@@ -206,6 +206,12 @@ void setup() {
 
   delay(2000);
 
+  // Initialize IMU
+  if(!accel.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+  if(!mag.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+
+  delay(2000);
+
   // Initialize pressure sensor
   // Returns true if initialization was successful
   // We can't continue with the rest of the program unless we can initialize the sensor
@@ -224,6 +230,29 @@ void setup() {
 }
 
 void loop() {
+  if (accel.begin() && mag.begin()) {
+    // Get sensor events
+    accel.getEvent(&accel_event);
+    mag.getEvent(&mag_event);
+
+    // Get orientation from Adafruit's fusion algorithm
+    if (dof.fusionGetOrientation(&accel_event, &mag_event, &orientation)) {
+      // Raw sensor fusion values
+      float rawRoll = orientation.roll;
+      float rawPitch = orientation.pitch;
+      float rawYaw = orientation.heading;
+
+      // Update Kalman filters for each angle
+      calculateKalman(rollEst,    P_roll,    rawRoll,    Q_roll,    R_roll);
+      calculateKalman(pitchEst,   P_pitch,   rawPitch,   Q_pitch,   R_pitch);
+      calculateKalman(yawEst,     P_yaw,     rawYaw,     Q_yaw,     R_yaw);
+
+      pIn = rollEst - pOffset;
+      rIn = pitchEst - rOffset;
+      wIn = yawEst - wOffset;
+    }
+  }
+
   // Read depth data from sensor
   if (depthSensor.init()) {
     depthSensor.read();
@@ -401,6 +430,8 @@ void loop() {
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
     int splitIndex = input.indexOf('=');
+    v1=0;v2=0;v3=0
+    v1=1;v2=1;v3=1
 
     String varName, newValue;
     if (splitIndex == -1) varName = input;
@@ -450,7 +481,11 @@ void loop() {
     else if (varName == "rD") rD = newValue.toFloat();
     else if (varName == "rIn") rIn = newValue.toFloat();
     else if (varName == "rTarget") rTarget = newValue.toFloat();
-    else if (varName == "rOffset") rOffset += rIn;
+    else if (varName == "rOffset") {
+      rOffset = rIn;
+      if (rOffset < -180) rOffset += 360;
+      else if (rOffset > 180) rOffset -= 360;
+    }
     else if (varName == "rDebug") rDebug = !rDebug;
 
     // Pitch variables
@@ -459,7 +494,11 @@ void loop() {
     else if (varName == "pD") pD = newValue.toFloat();
     else if (varName == "pIn") pIn = newValue.toFloat();
     else if (varName == "pTarget") pTarget = newValue.toFloat();
-    else if (varName == "pOffset") pOffset += pIn;
+    else if (varName == "pOffset") {
+      pOffset = pIn;
+      if (pOffset < -180) pOffset += 360;
+      else if (pOffset > 180) pOffset -= 360;
+    }
     else if (varName == "pDebug") pDebug = !pDebug;
 
     // Yaw variables
@@ -468,7 +507,7 @@ void loop() {
     else if (varName == "wD") wD = newValue.toFloat();
     else if (varName == "wIn") wIn = newValue.toFloat();
     else if (varName == "wTarget") wTarget = newValue.toFloat();
-    else if (varName == "wOffset") wOffset += wIn;
+    else if (varName == "wOffset") wOffset = wIn;
     else if (varName == "wDebug") wDebug = !wDebug;
 
     // Error case
