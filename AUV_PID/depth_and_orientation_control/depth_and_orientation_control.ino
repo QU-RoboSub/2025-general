@@ -181,18 +181,18 @@ void setup() {
   // Set initial duty cycle
   for (int i = 0; i < 8; i++) runThruster(i, 0);
 
-  delay(2000);
+  delay(3000);
 
   // Initialize IMU
   if(!accel.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
   if(!mag.begin()) Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
 
-  delay(2000);
+  delay(3000);
 
   // Initialize pressure sensor
   // Returns true if initialization was successful
   // We can't continue with the rest of the program unless we can initialize the sensor
-  while (!depthSensor.init()) {
+  if (!depthSensor.init()) {
     Serial.println("Init failed!");
     Serial.println("Are SDA/SCL connected correctly?");
     Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
