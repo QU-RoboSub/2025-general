@@ -84,47 +84,31 @@ BLA::Matrix<3, 3> rotationMatrix;
 BLA::Matrix<8, 1> thrusterInputMatrix;
 
 // Surge Control Parameters and Values
+float xIE, xPE, xIn, xOut, xTarget;
 float xP = 1;
-float xI = 0.000;
+float xI = 0;
 float xD = 0;
-float xIE = 0.0; // Integral error
-float xPE = 0; // Previous error
-float xIn;
-float xOut;
-float xTarget = 0;
 float xOffset = 0;
 
 // Sway Control Parameters and Values
+float yIE, yPE, yIn, yOut, yTarget;
 float yP = 1;
-float yI = 0.000;
+float yI = 0;
 float yD = 0;
-float yIE = 0.0; // Integral error
-float yPE = 0; // Previous error
-float yIn;
-float yOut;
-float yTarget = 0;
 float yOffset = 0;
 
 // Heave Control Parameters and Values
+float zIE, zPE, zIn, zOut, zTarget;
 float zP = 1.67173556453345;
-float zI = 0.000;
+float zI = 0;
 float zD = 0;
-float zIE = 0.0; // Integral error
-float zPE = 0; // Previous error
-float zIn;
-float zOut;
-float zTarget = 0.3;
 float zOffset = 0;
 
 // Roll Control Parameters and Values
+float rIE, rPE, rIn, rOut, rTarget;
 float rP = -0.01;
-float rI = 0.000;
+float rI = 0;
 float rD = 0;
-float rIE = 0.0; // Integral error
-float rPE = 0; // Previous error
-float rIn;
-float rOut;
-float rTarget = 0;
 float rOffset = 111.5;
 
 // Roll Kalman Filter Variables
@@ -134,14 +118,10 @@ float Q_roll = 1;
 float R_roll = 0.0003;
 
 // Pitch Control Parameters and Values
+float pIE, pPE, pIn, pOut, pTarget;
 float pP = -0.01;
-float pI = 0.000;
+float pI = 0;
 float pD = 0;
-float pIE = 0.0; // Integral error
-float pPE = 0; // Previous error
-float pIn;
-float pOut;
-float pTarget = 0;
 float pOffset = 34.5;
 
 // Pitch Kalman Filter Variables
@@ -151,14 +131,10 @@ float Q_pitch = 1;
 float R_pitch = 0.0003;
 
 // Yaw Control Parameters and Values
-float wP = 0;
-float wI = 0.000;
+float wIE, wPE, wIn, wOut, wTarget;
+float wP = 0; // TODO: change when using cameras IMU
+float wI = 0;
 float wD = 0;
-float wIE = 0.0; // Integral error
-float wPE = 0; // Previous error
-float wIn;
-float wOut;
-float wTarget = 0;
 float wOffset = 0;
 
 // Yaw Kalman Filter Variables
@@ -169,6 +145,7 @@ float R_yaw = 0.0003;
 
 // Safety Parameters
 int thrustLimit = 0;
+const int MAX_COMMANDS = 10;
 const float INTEGRAL_LIMIT = 100.0;
 
 // Debug Parameters
@@ -300,138 +277,27 @@ void loop() {
     Serial.println(" C"); 
   }
 
-  if (xDebug) {
-    Serial.println("Surge Control Params:");
-    Serial.print("P: ");
-    Serial.print(xP);
-    Serial.print(", ");
-    Serial.print("I: ");
-    Serial.print(xI);
-    Serial.print(", ");
-    Serial.print("D: ");
-    Serial.print(xD);
-    Serial.print(", ");
-    Serial.print("In: ");
-    Serial.print(xIn);
-    Serial.print(", ");
-    Serial.print("Target: ");
-    Serial.print(xTarget);
-    Serial.print(", ");
-    Serial.print("Out: ");
-    Serial.println(xOut);
-  }
-
-  if (yDebug) {
-    Serial.println("Sway Control Params:");
-    Serial.print("P: ");
-    Serial.print(yP);
-    Serial.print(", ");
-    Serial.print("I: ");
-    Serial.print(yI);
-    Serial.print(", ");
-    Serial.print("D: ");
-    Serial.print(yD);
-    Serial.print(", ");
-    Serial.print("In: ");
-    Serial.print(yIn);
-    Serial.print(", ");
-    Serial.print("Target: ");
-    Serial.print(yTarget);
-    Serial.print(", ");
-    Serial.print("Out: ");
-    Serial.println(yOut);
-  }
-
-  if (zDebug) {
-    Serial.println("Heave Control Params:");
-    Serial.print("P: ");
-    Serial.print(zP);
-    Serial.print(", ");
-    Serial.print("I: ");
-    Serial.print(zI);
-    Serial.print(", ");
-    Serial.print("D: ");
-    Serial.print(zD);
-    Serial.print(", ");
-    Serial.print("In: ");
-    Serial.print(zIn);
-    Serial.print(", ");
-    Serial.print("Target: ");
-    Serial.print(zTarget);
-    Serial.print(", ");
-    Serial.print("Out: ");
-    Serial.println(zOut);
-  }
-
-  if (rDebug) {
-    Serial.println("Roll Control Params:");
-    Serial.print("P: ");
-    Serial.print(rP);
-    Serial.print(", ");
-    Serial.print("I: ");
-    Serial.print(rI);
-    Serial.print(", ");
-    Serial.print("D: ");
-    Serial.print(rD);
-    Serial.print(", ");
-    Serial.print("In: ");
-    Serial.print(rIn);
-    Serial.print(", ");
-    Serial.print("Target: ");
-    Serial.print(rTarget);
-    Serial.print(", ");
-    Serial.print("Out: ");
-    Serial.println(rOut);
-  }
-
-  if (pDebug) {
-    Serial.println("Pitch Control Params:");
-    Serial.print("P: ");
-    Serial.print(pP);
-    Serial.print(", ");
-    Serial.print("I: ");
-    Serial.print(pI);
-    Serial.print(", ");
-    Serial.print("D: ");
-    Serial.print(pD);
-    Serial.print(", ");
-    Serial.print("In: ");
-    Serial.print(pIn);
-    Serial.print(", ");
-    Serial.print("Target: ");
-    Serial.print(pTarget);
-    Serial.print(", ");
-    Serial.print("Out: ");
-    Serial.println(pOut);
-  }
-
-  if (wDebug) {
-    Serial.println("Yaw Control Params:");
-    Serial.print("P: ");
-    Serial.print(wP);
-    Serial.print(", ");
-    Serial.print("I: ");
-    Serial.print(wI);
-    Serial.print(", ");
-    Serial.print("D: ");
-    Serial.print(wD);
-    Serial.print(", ");
-    Serial.print("In: ");
-    Serial.print(wIn);
-    Serial.print(", ");
-    Serial.print("Target: ");
-    Serial.print(wTarget);
-    Serial.print(", ");
-    Serial.print("Out: ");
-    Serial.println(wOut);
-  }
+  if (xDebug) debugParameters("Surge", xP, xI, xD, xIn, xTarget, xOut);
+  if (yDebug) debugParameters("Sway", yP, yI, yD, yIn, yTarget, yOut);
+  if (zDebug) debugParameters("Heave", zP, zI, zD, zIn, zTarget, zOut);
+  if (rDebug) debugParameters("Roll", rP, rI, rD, rIn, rTarget, rOut);
+  if (pDebug) debugParameters("Pitch", pP, pI, pD, pIn, pTarget, pOut);
+  if (wDebug) debugParameters("Yaw", wP, wI, wD, wIn, wTarget, wOut);
 
   // Allow user to change variable values during runtime
-  if (Serial.available() > 0) {
-    String input = Serial.readStringUntil('\n');
-    int splitIndex = input.indexOf('=');
+  if (Serial.available() > 0) parseCommands(Serial.readStringUntil('\n'));
+}
 
+// Parses a list of commands from the serial monitor
+void parseCommands(String input) {
+  while (input.length() > 0) {
+    // Take the next command until ;
+    int separatorIndex = input.indexOf(';');
+    String command = (separatorIndex == -1) ? input : input.substring(0, separatorIndex);
+
+    // Split individual command into varName and newValue
     String varName, newValue;
+    int splitIndex = input.indexOf('=');
     if (splitIndex == -1) varName = input;
     else {
       varName = input.substring(0, splitIndex);
@@ -444,6 +310,7 @@ void loop() {
     else if (varName == "thrusterDebug") thrusterDebug = !thrusterDebug;
     else if (varName == "tempDebug") tempDebug = !tempDebug;
 
+    // Change axes parameters
     if (varName.startsWith("x")) changeParameters(varName, newValue, xP, xI, xD, xIn, xTarget, xOut, xOffset, xDebug);
     else if (varName.startsWith("y")) changeParameters(varName, newValue, yP, yI, yD, yIn, yTarget, yOut, yOffset, yDebug);
     else if (varName.startsWith("z")) changeParameters(varName, newValue, zP, zI, zD, zIn, zTarget, zOut, zOffset, zDebug);
@@ -456,11 +323,13 @@ void loop() {
       Serial.println("Make sure input is in format <varName>=<newValue>");
       Serial.println(varName + " is not an accepted variable");
     }
-  }
 
-  delay(100); // TODO: remove if PID delay is too much
+    // Remove processed part
+    input = (separatorIndex == -1) ? "" : input.substring(separatorIndex + 1);
+  }
 }
 
+// Takes in varName=newValue and figures out which variable to change, works for all 6 DOFs
 void changeParameters(String varName, String newValue, float &p, float &i, float &d, float &in, float &target, float &out, float &offset, bool &debug) {
   if (varName.endsWith("P")) p = newValue.toFloat();
   else if (varName.endsWith("I")) i = newValue.toFloat();
@@ -481,6 +350,29 @@ void changeParameters(String varName, String newValue, float &p, float &i, float
   }
 }
 
+// Used to debug parameters and output to serial monitor
+void debugParameters(String axis, float &p, float &i, float &d, float &in, float &target, float &out) {
+  Serial.printf("%s Control Params:", axis);
+  Serial.print("P: ");
+  Serial.print(p);
+  Serial.print(", ");
+  Serial.print("I: ");
+  Serial.print(i);
+  Serial.print(", ");
+  Serial.print("D: ");
+  Serial.print(d);
+  Serial.print(", ");
+  Serial.print("In: ");
+  Serial.print(in);
+  Serial.print(", ");
+  Serial.print("Target: ");
+  Serial.print(target);
+  Serial.print(", ");
+  Serial.print("Out: ");
+  Serial.println(out);
+}
+
+// Apply kalman filter to IMU data to get better readings
 void calculateKalman(float& x_est, float& P_est, float z_meas, float Q, float R) {
   // 1. Predict step
   float x_pred = x_est;     // No state evolution in this simple model
@@ -498,6 +390,7 @@ void calculateKalman(float& x_est, float& P_est, float z_meas, float Q, float R)
   P_est = (1.0f - K) * P_pred;
 }
 
+// Create rotation matrix based on current IMU data
 void calculateRotationMatrix() {
   // Precalculate cos and sin of each angle in radians
   float cr = cos((rIn * 71.0) / 4068.0);
@@ -515,6 +408,7 @@ void calculateRotationMatrix() {
   };
 }
 
+// Converts control signal matrix in 6 DOFs to thruster commands for all 8 thrusters
 void convertInertialToBodyMatrix() {
   // Transform linear control signals (first 3 entries)
   BLA::Matrix<3, 1> ctrlLinear = {inertialControlMatrix(0), inertialControlMatrix(1), inertialControlMatrix(2)};
@@ -530,6 +424,7 @@ void convertInertialToBodyMatrix() {
   bodyControlMatrix(5) = inertialControlMatrix(5);
 }
 
+// Main PID controller logic
 void calculatePID(float &input, float &output, float &target, float p, float i, float d, float &integralError, float &prevError, bool isAngle) {
   // Calculate error
   float error = target - input;
@@ -561,6 +456,7 @@ void calculatePID(float &input, float &output, float &target, float p, float i, 
   // if (error > 1) output = 0;
 }
 
+// Runs a specific thruster at the given control signal (-1 to 1 where 1 is full thrust forward)
 void runThruster(int index, float signal) {
   // Make sure signal is from -1 to 1 and convert to duty cycle
   float duty = CENTER_DUTY + 2 * (signal * thrustLimit);
