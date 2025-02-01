@@ -117,7 +117,7 @@ float zTarget = 0.3;
 float zOffset = 0;
 
 // Roll Control Parameters and Values
-float rP = 0.01;
+float rP = -0.01;
 float rI = 0.000;
 float rD = 0;
 float rIE = 0.0; // Integral error
