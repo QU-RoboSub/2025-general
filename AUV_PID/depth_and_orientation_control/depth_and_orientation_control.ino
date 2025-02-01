@@ -430,8 +430,6 @@ void loop() {
   if (Serial.available() > 0) {
     String input = Serial.readStringUntil('\n');
     int splitIndex = input.indexOf('=');
-    v1=0;v2=0;v3=0
-    v1=1;v2=1;v3=1
 
     String varName, newValue;
     if (splitIndex == -1) varName = input;
@@ -446,69 +444,12 @@ void loop() {
     else if (varName == "thrusterDebug") thrusterDebug = !thrusterDebug;
     else if (varName == "tempDebug") tempDebug = !tempDebug;
 
-    // Surge variables
-    else if (varName == "xP") xP = newValue.toFloat();
-    else if (varName == "xI") xI = newValue.toFloat();
-    else if (varName == "xD") xD = newValue.toFloat();
-    else if (varName == "xIn") xIn = newValue.toFloat();
-    else if (varName == "xTarget") xTarget = newValue.toFloat();
-    else if (varName == "xOffset") xOffset += xIn;
-    else if (varName == "xOut") xOut = newValue.toFloat(); // Remove this if we PID control for surge
-    else if (varName == "xDebug") xDebug = !xDebug;
-
-    // Sway variables
-    else if (varName == "yP") yP = newValue.toFloat();
-    else if (varName == "yI") yI = newValue.toFloat();
-    else if (varName == "yD") yD = newValue.toFloat();
-    else if (varName == "yIn") yIn = newValue.toFloat();
-    else if (varName == "yTarget") yTarget = newValue.toFloat();
-    else if (varName == "yOffset") yOffset += yIn;
-    else if (varName == "yOut") yOut = newValue.toFloat(); // Remove this if we PID control for sway
-    else if (varName == "yDebug") yDebug = !yDebug;
-
-    // Heave variables
-    else if (varName == "zP") zP = newValue.toFloat();
-    else if (varName == "zI") zI = newValue.toFloat();
-    else if (varName == "zD") zD = newValue.toFloat();
-    else if (varName == "zIn") zIn = newValue.toFloat();
-    else if (varName == "zTarget") zTarget = newValue.toFloat();
-    else if (varName == "zOffset") zOffset += zIn;
-    else if (varName == "zDebug") zDebug = !zDebug;
-
-    // Roll variables
-    else if (varName == "rP") rP = newValue.toFloat();
-    else if (varName == "rI") rI = newValue.toFloat();
-    else if (varName == "rD") rD = newValue.toFloat();
-    else if (varName == "rIn") rIn = newValue.toFloat();
-    else if (varName == "rTarget") rTarget = newValue.toFloat();
-    else if (varName == "rOffset") {
-      rOffset = rIn;
-      if (rOffset < -180) rOffset += 360;
-      else if (rOffset > 180) rOffset -= 360;
-    }
-    else if (varName == "rDebug") rDebug = !rDebug;
-
-    // Pitch variables
-    else if (varName == "pP") pP = newValue.toFloat();
-    else if (varName == "pI") pI = newValue.toFloat();
-    else if (varName == "pD") pD = newValue.toFloat();
-    else if (varName == "pIn") pIn = newValue.toFloat();
-    else if (varName == "pTarget") pTarget = newValue.toFloat();
-    else if (varName == "pOffset") {
-      pOffset = pIn;
-      if (pOffset < -180) pOffset += 360;
-      else if (pOffset > 180) pOffset -= 360;
-    }
-    else if (varName == "pDebug") pDebug = !pDebug;
-
-    // Yaw variables
-    else if (varName == "wP") wP = newValue.toFloat();
-    else if (varName == "wI") wI = newValue.toFloat();
-    else if (varName == "wD") wD = newValue.toFloat();
-    else if (varName == "wIn") wIn = newValue.toFloat();
-    else if (varName == "wTarget") wTarget = newValue.toFloat();
-    else if (varName == "wOffset") wOffset = wIn;
-    else if (varName == "wDebug") wDebug = !wDebug;
+    if (varName.startsWith("x")) changeParameters(varName, newValue, xP, xI, xD, xIn, xTarget, xOut, xOffset, xDebug);
+    else if (varName.startsWith("y")) changeParameters(varName, newValue, yP, yI, yD, yIn, yTarget, yOut, yOffset, yDebug);
+    else if (varName.startsWith("z")) changeParameters(varName, newValue, zP, zI, zD, zIn, zTarget, zOut, zOffset, zDebug);
+    else if (varName.startsWith("r")) changeParameters(varName, newValue, rP, rI, rD, rIn, rTarget, rOut, rOffset, rDebug);
+    else if (varName.startsWith("p")) changeParameters(varName, newValue, pP, pI, pD, pIn, pTarget, pOut, pOffset, pDebug);
+    else if (varName.startsWith("w")) changeParameters(varName, newValue, wP, wI, wD, wIn, wTarget, wOut, wOffset, wDebug);
 
     // Error case
     else {
@@ -518,6 +459,26 @@ void loop() {
   }
 
   delay(100); // TODO: remove if PID delay is too much
+}
+
+void changeParameters(String varName, String newValue, float &p, float &i, float &d, float &in, float &target, float &out, float &offset, bool &debug) {
+  if (varName.endsWith("P")) p = newValue.toFloat();
+  else if (varName.endsWith("I")) i = newValue.toFloat();
+  else if (varName.endsWith("D")) d = newValue.toFloat();
+  else if (varName.endsWith("In")) in = newValue.toFloat();
+  else if (varName.endsWith("Target")) target = newValue.toFloat();
+  else if (varName.endsWith("Out")) out = newValue.toFloat();
+  else if (varName.endsWith("Debug")) debug = !debug;
+
+  else if (varName.endsWith("Offset")) {
+    bool isLinear = varName.startsWith("x") || varName.startsWith("y") || varName.startsWith("z");
+    if (isLinear) offset = in;
+    else {
+      offset = in;
+      if (offset < -180) offset += 360;
+      else if (offset > 180) offset -= 360;
+    }
+  }
 }
 
 void calculateKalman(float& x_est, float& P_est, float z_meas, float Q, float R) {
