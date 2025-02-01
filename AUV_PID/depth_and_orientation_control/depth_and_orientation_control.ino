@@ -354,20 +354,15 @@ void debugParameters(String axis, float &p, float &i, float &d, float &in, float
   Serial.printf("%s Control Params:", axis);
   Serial.print("P: ");
   Serial.print(p);
-  Serial.print(", ");
-  Serial.print("I: ");
+  Serial.print(", I: ");
   Serial.print(i);
-  Serial.print(", ");
-  Serial.print("D: ");
+  Serial.print(", D: ");
   Serial.print(d);
-  Serial.print(", ");
-  Serial.print("In: ");
+  Serial.print(", In: ");
   Serial.print(in);
-  Serial.print(", ");
-  Serial.print("Target: ");
+  Serial.print(", Target: ");
   Serial.print(target);
-  Serial.print(", ");
-  Serial.print("Out: ");
+  Serial.print(", Out: ");
   Serial.println(out);
 }
 
