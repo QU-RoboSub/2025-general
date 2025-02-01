@@ -63,7 +63,7 @@ BLA::Matrix<8, 6> allocationMatrix = {
 };
 BLA::Matrix<6, 8> originalAllocationMatrix = {
 //27, 26, 25, 33, 32,  5, 18, 19
-  -1,  0,  0,  1,  1,  0,  0, -1, // X axis allocation
+  -1,  0,  0,  1,  1,  0,  0, -1, // x axis allocation
    1,  0,  0, -1,  1,  0,  0, -1, // y axis allocation
    0, -1, -1,  0,  0, -1, -1,  0, // z axis allocation
    0,  1, -1,  0,  0,  1, -1,  0, // roll axis allocation
@@ -102,14 +102,14 @@ float zIE, zPE, zIn, zOut, zTarget;
 float zP = 1.67173556453345;
 float zI = 0;
 float zD = 0;
-float zOffset = 0;
+float zOffset = 0.12;
 
 // Roll Control Parameters and Values
 float rIE, rPE, rIn, rOut, rTarget;
 float rP = -0.01;
 float rI = 0;
 float rD = 0;
-float rOffset = 111.5;
+float rOffset = 40;
 
 // Roll Kalman Filter Variables
 static float rollEst = 0.0;
@@ -122,7 +122,7 @@ float pIE, pPE, pIn, pOut, pTarget;
 float pP = -0.01;
 float pI = 0;
 float pD = 0;
-float pOffset = 34.5;
+float pOffset = 101;
 
 // Pitch Kalman Filter Variables
 static float pitchEst = 0.0;
@@ -266,7 +266,6 @@ void loop() {
 
   if (thrusterDebug) {
     Serial.println("Thruster Output Matrix:");
-    Serial.println(thrustLimit);
     for (int i = 0; i < 8; i++) Serial.print(String(thrusterInputMatrix(i)) + ", ");
     Serial.println('\n');
   }
@@ -311,7 +310,7 @@ void parseCommands(String input) {
     else if (varName == "tempDebug") tempDebug = !tempDebug;
 
     // Change axes parameters
-    if (varName.startsWith("x")) changeParameters(varName, newValue, xP, xI, xD, xIn, xTarget, xOut, xOffset, xDebug);
+    else if (varName.startsWith("x")) changeParameters(varName, newValue, xP, xI, xD, xIn, xTarget, xOut, xOffset, xDebug);
     else if (varName.startsWith("y")) changeParameters(varName, newValue, yP, yI, yD, yIn, yTarget, yOut, yOffset, yDebug);
     else if (varName.startsWith("z")) changeParameters(varName, newValue, zP, zI, zD, zIn, zTarget, zOut, zOffset, zDebug);
     else if (varName.startsWith("r")) changeParameters(varName, newValue, rP, rI, rD, rIn, rTarget, rOut, rOffset, rDebug);
@@ -343,7 +342,7 @@ void changeParameters(String varName, String newValue, float &p, float &i, float
     bool isLinear = varName.startsWith("x") || varName.startsWith("y") || varName.startsWith("z");
     if (isLinear) offset = in;
     else {
-      offset = in;
+      offset += in;
       if (offset < -180) offset += 360;
       else if (offset > 180) offset -= 360;
     }
