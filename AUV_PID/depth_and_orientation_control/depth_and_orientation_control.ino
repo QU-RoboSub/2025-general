@@ -413,9 +413,9 @@ void convertInertialToBodyMatrix() {
   BLA::Matrix<3, 1> ctrlLinear = {inertialControlMatrix(0), inertialControlMatrix(1), inertialControlMatrix(2)};
   BLA::Matrix<3, 1> transformedLinear = rotationMatrix * ctrlLinear;
 
-  bodyControlMatrix(0) = transformedLinear(0);
-  bodyControlMatrix(1) = transformedLinear(1);
-  bodyControlMatrix(2) = transformedLinear(2);
+  bodyControlMatrix(0) = -transformedLinear(0);
+  bodyControlMatrix(1) = -transformedLinear(1);
+  bodyControlMatrix(2) = -transformedLinear(2);
 
   // Copy rotational signals directly (last 3 entries)
   bodyControlMatrix(3) = inertialControlMatrix(3);
